@@ -11,7 +11,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
 
     override func setUp() {
         super.setUp()
-
+        continueAfterFailure = false
         // 创建一个新的线程来运行服务器
         listenThread = Thread(target: self, selector: #selector(startServer), object: nil)
         listenThread.start()
@@ -45,11 +45,11 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
     }
 
     func startServer() {
-        var customValueInt:UInt16 = 9090
+        var customValueInt:UInt16 = 8200
         listenSocket = GCDAsyncSocket(delegate: self, delegateQueue: DispatchQueue.main)
         do {
             if let customValueString = ProcessInfo.processInfo.environment["USE_PORT"] {
-                        customValueInt = UInt16(customValueString) ?? 9090
+                        customValueInt = UInt16(customValueString) ?? 8200
                         print("The value of USE_PORT is: \(customValueString)")
                    } else {
                        // 环境变量未设置
@@ -71,6 +71,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
 
     func socket(_ sock: GCDAsyncSocket, didRead data: Data, withTag tag: Int) {
         if let message = String(data: data, encoding: .utf8) {
+                  
                   print("Received message: \(message)")
                   if message.contains("Close") {
                       tearDown()
@@ -82,8 +83,9 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                       }
                   }
                  if message.contains("dump_tree") {
-                     let bundle_id = message.split(separator: ":")[1]
-                     let app = XCUIApplication(bundleIdentifier: bundle_id)
+                     let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                     print(bundle_id + "is the bundle id")
+                     let app = XCUIApplication(bundleIdentifier: String(bundle_id))
 //                     app.launch()
                      print(app.debugDescription)
                      let response = app.debugDescription
@@ -91,6 +93,54 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                         sock.write(responseData, withTimeout: -1, tag: 0)
                     }
                 }
+            if message.contains("get_current_bundleIdentifier"){
+                let bundleIdentifier = Bundle.main.bundleIdentifier
+                let response = bundleIdentifier ?? "Unknown bundle identifier"
+                if let responseData = response.data(using: .utf8) {
+                    sock.write(responseData, withTimeout: -1, tag: 0)
+                }
+            }
+            if message.contains("action") {
+                UIView.setAnimationsEnabled(false)
+                DispatchQueue.main.async {
+                    let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let bundle_id = message_debug.split(separator: ":")[1]
+                    print(bundle_id + "is the bundle id")
+                    let app = XCUIApplication(bundleIdentifier: String(bundle_id))
+                    let action = message_debug.split(separator: ":")[2]
+                    let xPixel = CGFloat(Float(message_debug.split(separator: ":")[3]) ?? 0.0)
+                    let yPixel = CGFloat(Float(message_debug.split(separator: ":")[4]) ?? 0.0)
+                    let windowFrame = app.windows.element(boundBy: 0).frame
+                    let windowWidth = windowFrame.width
+                    let windowHeight = windowFrame.height
+                    let xNormalized = xPixel / windowWidth
+                    let yNormalized = yPixel / windowHeight
+
+                    let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: xNormalized, dy: yNormalized))
+                    
+                    switch action {
+                    case "tap":
+                        coordinate.tap()
+                    case "longPress":
+                        let duration = Double(message_debug.split(separator: ":")[5]) ?? 1.0
+                        coordinate.press(forDuration: duration)
+                    case "drag":
+                        let x2Pixel = CGFloat(Float(message_debug.split(separator: ":")[5]) ?? 0.0)
+                        let y2Pixel = CGFloat(Float(message_debug.split(separator: ":")[6]) ?? 0.0)
+                        let x2Normalized = x2Pixel / windowWidth
+                        let y2Normalized = y2Pixel / windowHeight
+                        let destinationCoordinate = XCUIApplication().coordinate(withNormalizedOffset: CGVector(dx: x2Normalized, dy: y2Normalized))
+                        let dragDuration = Double(message_debug.split(separator: ":")[7]) ?? 1.0
+                        coordinate.press(forDuration: dragDuration, thenDragTo: destinationCoordinate)
+                    case "typeText":
+                        let text = String(message_debug.split(separator: ":")[3])
+                        app.typeText(text)
+                    default:
+                        print("Unknown action: \(action)")
+                    }
+                }
+            }
+            
               }
               sock.disconnectAfterWriting()
     }
