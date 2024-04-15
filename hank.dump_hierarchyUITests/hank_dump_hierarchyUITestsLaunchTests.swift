@@ -91,6 +91,12 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                         sock.write(responseData, withTimeout: -1, tag: 0)
                     }
                 }
+            if message.contains("get_pic"){
+                let screenshot = XCUIScreen.main.screenshot()
+                let imageData = screenshot.pngRepresentation
+        
+                sock.write(imageData, withTimeout: -1, tag: 0)
+            }
             if message.contains("found_element") {
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -153,6 +159,13 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                                if let responseData = response.data(using: .utf8) {
                                    sock.write(responseData, withTimeout: -1, tag: 0)
                                }
+            }
+            if message.contains("get_pic"){
+                let screenshot = XCUIScreen.main.screenshot()
+                let imageData = screenshot.pngRepresentation
+                print(imageData)
+                        // 直接发送屏幕截图数据
+                sock.write(imageData, withTimeout: -1, tag: 0)
             }
             if message.contains("action") {
                 UIView.setAnimationsEnabled(false)
