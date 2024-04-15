@@ -122,12 +122,37 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                 }
                 
             }
-            if message.contains("get_current_bundleIdentifier"){
-                let bundleIdentifier = Bundle.main.bundleIdentifier
-                let response = bundleIdentifier ?? "Unknown bundle identifier"
-                if let responseData = response.data(using: .utf8) {
-                    sock.write(responseData, withTimeout: -1, tag: 0)
-                }
+            if message.contains("get_current_bundleIdentifier") {
+                            let ios_system_bundle_identifiers = [
+                                "com.apple.Preferences",
+                                "com.apple.mobilephone",
+                                "com.apple.MobileSMS",
+                                "com.apple.camera",
+                                "com.apple.mobileslideshow",
+                                "com.apple.mobilemail",
+                                "com.apple.mobilesafari",
+                                "com.apple.mobilecal",
+                                "com.apple.reminders",
+                                "com.apple.mobilenotes",
+                                "com.apple.Music",
+                                "com.apple.Maps",
+                                "com.apple.springboard"
+                            ]
+                            let messageParts = message.split(separator: ":").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                               var response = "No frontmost app found"
+                               if messageParts.count > 1 {
+                                   let bundle_ids = Array(messageParts[1...]) + ios_system_bundle_identifiers
+                                   for bundleId in bundle_ids {
+                                       let app = XCUIApplication(bundleIdentifier: bundleId)
+                                       if app.state == .runningForeground {
+                                           response = bundleId
+                                           break
+                                       }
+                                   }
+                               }
+                               if let responseData = response.data(using: .utf8) {
+                                   sock.write(responseData, withTimeout: -1, tag: 0)
+                               }
             }
             if message.contains("action") {
                 UIView.setAnimationsEnabled(false)
