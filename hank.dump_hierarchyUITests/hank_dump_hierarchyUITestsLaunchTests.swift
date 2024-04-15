@@ -1,4 +1,3 @@
-
 import XCTest
 import CocoaAsyncSocket
 
@@ -16,7 +15,6 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
         listenThread = Thread(target: self, selector: #selector(startServer), object: nil)
         listenThread.start()
         print("Listening on port ")
-
         // 等待一段时间，确保服务器已经启动
         Thread.sleep(forTimeInterval: 1.0)
     }
@@ -93,6 +91,37 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                         sock.write(responseData, withTimeout: -1, tag: 0)
                     }
                 }
+            if message.contains("found_element") {
+                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+ 
+                print(bundle_id + "is the bundle id")
+                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
+                var element:XCUIElement
+                if condition.contains("index"){
+                    let index = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    element = app.descendants(matching: .any).element(boundBy: Int(index)!)
+                }else{
+            
+                    let predicate = NSPredicate(format: condition)
+                    element = app.descendants(matching: .any ).element(matching: predicate)
+                }
+        
+                do {
+                    let response = try element.snapshot().dictionaryRepresentation
+                    let responseData = try JSONSerialization.data(withJSONObject: response, options: [])
+                    sock.write(responseData, withTimeout: -1, tag: 0)
+                   
+                    
+                    // 使用 element
+                } catch {
+                    let response = ""
+                    if let responseData = response.data(using: .utf8) {
+                        sock.write(responseData, withTimeout: -1, tag: 0)
+                    }
+                }
+                
+            }
             if message.contains("get_current_bundleIdentifier"){
                 let bundleIdentifier = Bundle.main.bundleIdentifier
                 let response = bundleIdentifier ?? "Unknown bundle identifier"
