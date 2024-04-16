@@ -85,7 +85,6 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                      print(bundle_id + "is the bundle id")
                      let app = XCUIApplication(bundleIdentifier: String(bundle_id))
 //                     app.launch()
-                     print(app.debugDescription)
                      let response = app.debugDescription
                      if let responseData = response.data(using: .utf8) {
                         sock.write(responseData, withTimeout: -1, tag: 0)
@@ -97,25 +96,25 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
         
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
-            if message.contains("found_element") {
+            if message.contains("find_element_first") {
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
- 
-                print(bundle_id + "is the bundle id")
                 let app = XCUIApplication(bundleIdentifier: String(bundle_id))
                 var element:XCUIElement
                 if condition.contains("index"){
                     let index = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
                     element = app.descendants(matching: .any).element(boundBy: Int(index)!)
                 }else{
+             
             
                     let predicate = NSPredicate(format: condition)
-                    element = app.descendants(matching: .any ).element(matching: predicate)
+                    element = app.descendants(matching: .any).element(matching: predicate).firstMatch
                 }
         
                 do {
                     let response = try element.snapshot().dictionaryRepresentation
                     let responseData = try JSONSerialization.data(withJSONObject: response, options: [])
+                    print(responseData)
                     sock.write(responseData, withTimeout: -1, tag: 0)
                    
                     
@@ -166,6 +165,50 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                 print(imageData)
                         // 直接发送屏幕截图数据
                 sock.write(imageData, withTimeout: -1, tag: 0)
+            }
+            if message.contains("find_by_xpath"){
+                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let xpath = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+ 
+                print(bundle_id + "is the bundle id")
+                let app = XCUIApplication(bundleIdentifier:String(bundle_id))
+                let elements = xpath.split(separator: "/")
+                var currentElement = app.children(matching: .any).element(boundBy: 0)
+                for element in elements{
+                    if let bracketIndex = element.firstIndex(of: "[") {
+                        // 提取 "window"
+                        let type = String(element.prefix(upTo: bracketIndex))
+                        
+                        // 提取 "0"
+                        var index = Int(element[bracketIndex...].trimmingCharacters(in: CharacterSet(charactersIn: "[]")))
+                        
+                        switch type{
+                        case "Window":
+                            print("done")
+                        case "Other":
+                            print(index!)
+                            currentElement = currentElement.otherElements.element(boundBy:index!)
+                        case "NavigationBar":
+                            currentElement = currentElement.navigationBars.element(boundBy:index!)
+                        case "StaticText":
+                            currentElement = currentElement.staticTexts.element(boundBy:index!)
+                        default:
+                            break
+                        }
+                        
+                    }
+                }
+
+               
+
+//                print(XCUIElement.ElementType.other.rawValue)
+//                print(XCUIElement.ElementType.window.rawValue)
+//                print(XCUIElement.ElementType.textView.rawValue)
+//                print(XCUIElement.ElementType.textField.rawValue)
+                print(currentElement.frame)
+
+                
+                
             }
             if message.contains("action") {
                 UIView.setAnimationsEnabled(false)
