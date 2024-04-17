@@ -1,7 +1,26 @@
 import XCTest
 import CocoaAsyncSocket
+import Foundation
+import UIKit
 
-class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
+// 另一个类，用于生成可访问性树
+func get_element_to_json(element:XCUIElement) -> Data{
+    var responseData:Data
+    do {
+        let response = try element.snapshot().dictionaryRepresentation
+        responseData = try JSONSerialization.data(withJSONObject: response, options: [])
+        
+        
+        // 使用 element
+    } catch {
+        responseData = Data()
+        }
+    return responseData
+}
+    
+
+
+class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
     var listenThread: Thread!
     var listenSocket: GCDAsyncSocket!
     var connectedSockets = [GCDAsyncSocket]()
@@ -110,21 +129,23 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                     let predicate = NSPredicate(format: condition)
                     element = app.descendants(matching: .any).element(matching: predicate).firstMatch
                 }
-        
-                do {
-                    let response = try element.snapshot().dictionaryRepresentation
-                    let responseData = try JSONSerialization.data(withJSONObject: response, options: [])
-                    print(responseData)
-                    sock.write(responseData, withTimeout: -1, tag: 0)
-                   
-                    
-                    // 使用 element
-                } catch {
-                    let response = ""
-                    if let responseData = response.data(using: .utf8) {
-                        sock.write(responseData, withTimeout: -1, tag: 0)
-                    }
-                }
+                let  responseData = get_element_to_json(element: element)
+                sock.write(responseData, withTimeout: -1, tag: 0)
+
+//                do {
+//                    let response = try element.snapshot().dictionaryRepresentation
+//                    let responseData = try JSONSerialization.data(withJSONObject: response, options: [])
+//                    print(responseData)
+//                    sock.write(responseData, withTimeout: -1, tag: 0)
+//                   
+//                    
+//                    // 使用 element
+//                } catch {
+//                    let response = ""
+//                    if let responseData = response.data(using: .utf8) {
+//                        sock.write(responseData, withTimeout: -1, tag: 0)
+//                    }
+//                }
                 
             }
             if message.contains("get_current_bundleIdentifier") {
@@ -166,25 +187,29 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                         // 直接发送屏幕截图数据
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
+    
             if message.contains("find_by_xpath"){
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let xpath = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
- 
-                print(bundle_id + "is the bundle id")
+                let FindElement = FindElement()
                 let app = XCUIApplication(bundleIdentifier:String(bundle_id))
+                let element = FindElement.find_element_by_xpath(bundle_id: bundle_id, app: app, xpath: xpath)
                 let elements = xpath.split(separator: "/")
                 var currentElement = app.children(matching: .any).element(boundBy: 0)
                 for element in elements{
                     if let bracketIndex = element.firstIndex(of: "[") {
-                        // 提取 "window"
                         let type = String(element.prefix(upTo: bracketIndex))
                         
-                        // 提取 "0"
+                       
                         var index = Int(element[bracketIndex...].trimmingCharacters(in: CharacterSet(charactersIn: "[]")))
                         
                         switch type{
                         case "Window":
-                            print("done")
+                            if index == 0{
+                                print("pass")
+                            }else{
+                                currentElement = currentElement.windows.element(boundBy:index!)
+                            }
                         case "Other":
                             print(index!)
                             currentElement = currentElement.otherElements.element(boundBy:index!)
@@ -192,6 +217,8 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                             currentElement = currentElement.navigationBars.element(boundBy:index!)
                         case "StaticText":
                             currentElement = currentElement.staticTexts.element(boundBy:index!)
+                        case "Image":
+                            currentElement = currentElement.images.element(boundBy:index!)
                         default:
                             break
                         }
@@ -199,13 +226,8 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate {
                     }
                 }
 
-               
-
-//                print(XCUIElement.ElementType.other.rawValue)
-//                print(XCUIElement.ElementType.window.rawValue)
-//                print(XCUIElement.ElementType.textView.rawValue)
-//                print(XCUIElement.ElementType.textField.rawValue)
-                print(currentElement.frame)
+                let  responseData = get_element_to_json(element: currentElement)
+                sock.write(responseData, withTimeout: -1, tag: 0)
 
                 
                 

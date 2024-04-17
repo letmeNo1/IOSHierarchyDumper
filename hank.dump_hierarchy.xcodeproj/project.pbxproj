@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		223B1F162BCED61E00C8FC4B /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 223B1F152BCED61E00C8FC4B /* UIKit.framework */; };
+		223B1F182BCED62F00C8FC4B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 223B1F172BCED62F00C8FC4B /* Foundation.framework */; };
+		223B1F1C2BCF671C00C8FC4B /* FindElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 223B1F1B2BCF671C00C8FC4B /* FindElement.swift */; };
 		22698FAF2B995C0D0093A2BD /* hank_dump_hierarchyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22698FAE2B995C0D0093A2BD /* hank_dump_hierarchyApp.swift */; };
 		22698FB12B995C0D0093A2BD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22698FB02B995C0D0093A2BD /* ContentView.swift */; };
 		22698FB32B995C110093A2BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 22698FB22B995C110093A2BD /* Assets.xcassets */; };
@@ -38,6 +41,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		223B1F152BCED61E00C8FC4B /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/System/iOSSupport/System/Library/Frameworks/UIKit.framework; sourceTree = DEVELOPER_DIR; };
+		223B1F172BCED62F00C8FC4B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		223B1F1B2BCF671C00C8FC4B /* FindElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindElement.swift; sourceTree = "<group>"; };
 		22698FAB2B995C0D0093A2BD /* hank.dump_hierarchy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hank.dump_hierarchy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		22698FAE2B995C0D0093A2BD /* hank_dump_hierarchyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hank_dump_hierarchyApp.swift; sourceTree = "<group>"; };
 		22698FB02B995C0D0093A2BD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -72,6 +78,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				223B1F182BCED62F00C8FC4B /* Foundation.framework in Frameworks */,
+				223B1F162BCED61E00C8FC4B /* UIKit.framework in Frameworks */,
 				22F9D34B2B99BF940002A004 /* CocoaAsyncSocket in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -79,6 +87,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		223B1F142BCED61E00C8FC4B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				223B1F172BCED62F00C8FC4B /* Foundation.framework */,
+				223B1F152BCED61E00C8FC4B /* UIKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		22698FA22B995C0D0093A2BD = {
 			isa = PBXGroup;
 			children = (
@@ -86,6 +103,7 @@
 				22698FBE2B995C110093A2BD /* hank.dump_hierarchyTests */,
 				22698FC82B995C120093A2BD /* hank.dump_hierarchyUITests */,
 				22698FAC2B995C0D0093A2BD /* Products */,
+				223B1F142BCED61E00C8FC4B /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -131,6 +149,7 @@
 			children = (
 				22698FC92B995C120093A2BD /* hank_dump_hierarchyUITests.swift */,
 				22698FCB2B995C120093A2BD /* hank_dump_hierarchyUITestsLaunchTests.swift */,
+				223B1F1B2BCF671C00C8FC4B /* FindElement.swift */,
 			);
 			path = hank.dump_hierarchyUITests;
 			sourceTree = "<group>";
@@ -296,6 +315,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				223B1F1C2BCF671C00C8FC4B /* FindElement.swift in Sources */,
 				22698FCC2B995C120093A2BD /* hank_dump_hierarchyUITestsLaunchTests.swift in Sources */,
 				22698FCA2B995C120093A2BD /* hank_dump_hierarchyUITests.swift in Sources */,
 			);
