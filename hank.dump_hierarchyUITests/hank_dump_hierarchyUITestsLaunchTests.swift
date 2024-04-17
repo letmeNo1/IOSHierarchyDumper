@@ -3,9 +3,14 @@ import CocoaAsyncSocket
 import Foundation
 import UIKit
 
-// 另一个类，用于生成可访问性树
-func get_element_to_json(element:XCUIElement) -> Data{
+
+func get_element_to_json(element:XCUIElement?) -> Data{
+    guard let element = element else {
+        print("Element is nil")
+        return Data()
+    }
     var responseData:Data
+    
     do {
         let response = try element.snapshot().dictionaryRepresentation
         responseData = try JSONSerialization.data(withJSONObject: response, options: [])
@@ -131,21 +136,6 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 }
                 let  responseData = get_element_to_json(element: element)
                 sock.write(responseData, withTimeout: -1, tag: 0)
-
-//                do {
-//                    let response = try element.snapshot().dictionaryRepresentation
-//                    let responseData = try JSONSerialization.data(withJSONObject: response, options: [])
-//                    print(responseData)
-//                    sock.write(responseData, withTimeout: -1, tag: 0)
-//                   
-//                    
-//                    // 使用 element
-//                } catch {
-//                    let response = ""
-//                    if let responseData = response.data(using: .utf8) {
-//                        sock.write(responseData, withTimeout: -1, tag: 0)
-//                    }
-//                }
                 
             }
             if message.contains("get_current_bundleIdentifier") {
@@ -194,39 +184,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 let FindElement = FindElement()
                 let app = XCUIApplication(bundleIdentifier:String(bundle_id))
                 let element = FindElement.find_element_by_xpath(bundle_id: bundle_id, app: app, xpath: xpath)
-                let elements = xpath.split(separator: "/")
-                var currentElement = app.children(matching: .any).element(boundBy: 0)
-                for element in elements{
-                    if let bracketIndex = element.firstIndex(of: "[") {
-                        let type = String(element.prefix(upTo: bracketIndex))
-                        
-                       
-                        var index = Int(element[bracketIndex...].trimmingCharacters(in: CharacterSet(charactersIn: "[]")))
-                        
-                        switch type{
-                        case "Window":
-                            if index == 0{
-                                print("pass")
-                            }else{
-                                currentElement = currentElement.windows.element(boundBy:index!)
-                            }
-                        case "Other":
-                            print(index!)
-                            currentElement = currentElement.otherElements.element(boundBy:index!)
-                        case "NavigationBar":
-                            currentElement = currentElement.navigationBars.element(boundBy:index!)
-                        case "StaticText":
-                            currentElement = currentElement.staticTexts.element(boundBy:index!)
-                        case "Image":
-                            currentElement = currentElement.images.element(boundBy:index!)
-                        default:
-                            break
-                        }
-                        
-                    }
-                }
-
-                let  responseData = get_element_to_json(element: currentElement)
+                let  responseData = get_element_to_json(element: element)
                 sock.write(responseData, withTimeout: -1, tag: 0)
 
                 
