@@ -114,6 +114,14 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                         sock.write(responseData, withTimeout: -1, tag: 0)
                     }
                 }
+            if message.contains("dump_11"){
+                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                print(bundle_id + "is the bundle id")
+                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
+                print(app.debugDescription)
+                let FindElement = FindElement()
+                print(FindElement.getVisibleElementsDescription(element: app))
+            }
             if message.contains("get_pic"){
                 let screenshot = XCUIScreen.main.screenshot()
                 let imageData = screenshot.pngRepresentation
@@ -121,6 +129,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
             if message.contains("find_element_first") {
+                
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let app = XCUIApplication(bundleIdentifier: String(bundle_id))
