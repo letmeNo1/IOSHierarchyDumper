@@ -3,26 +3,29 @@ import CocoaAsyncSocket
 import Foundation
 import UIKit
 
-
-func get_element_to_json(element:XCUIElement?) -> Data{
-    guard let element = element else {
-        print("Element is nil")
-        return Data()
-    }
-    var responseData:Data
-    
-    do {
-        let response = try element.snapshot().dictionaryRepresentation
-        responseData = try JSONSerialization.data(withJSONObject: response, options: [])
-        
-        
-        // 使用 element
-    } catch {
-        responseData = Data()
-        }
-    return responseData
+enum SomeError: Error {
+    case StringConversionFailed
 }
-    
+
+extension XCUIElement {
+    func snapshotToString() -> String {
+        let response = try! self.snapshot().dictionaryRepresentation
+        let jsonData = try! JSONSerialization.data(withJSONObject: response, options: .prettyPrinted)
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            fatalError("String conversion failed")
+        }
+        return jsonString
+    }
+}
+func buildElementTree(_ element: XCUIElement, indent: String = "") -> String {
+    var result = "\(indent)\(String(describing: try? element.snapshot()))\n"
+    for i in 0..<element.children(matching: .any).count {
+        let child = element.children(matching: .any).element(boundBy: i)
+        result += buildElementTree(child, indent: indent + "  ")
+    }
+    return result
+}
+
 
 
 class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
@@ -104,24 +107,17 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                           sock.write(responseData, withTimeout: -1, tag: 0)
                       }
                   }
-                 if message.contains("dump_tree") {
-                     let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                     print(bundle_id + "is the bundle id")
-                     let app = XCUIApplication(bundleIdentifier: String(bundle_id))
+            if message.contains("dump_tree") {
+                    let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    print(bundle_id + "is the bundle id")
+                    let app = XCUIApplication(bundleIdentifier: String(bundle_id))
 //                     app.launch()
-                     let response = app.debugDescription
-                     if let responseData = response.data(using: .utf8) {
-                        sock.write(responseData, withTimeout: -1, tag: 0)
-                    }
-                }
-            if message.contains("dump_11"){
-                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                print(bundle_id + "is the bundle id")
-                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                print(app.debugDescription)
-                let FindElement = FindElement()
-                print(FindElement.getVisibleElementsDescription(element: app))
+                    let response = app.debugDescription
+                    if let responseData = response.data(using: .utf8) {
+                       sock.write(responseData, withTimeout: -1, tag: 0)
+               }
             }
+          
             if message.contains("get_pic"){
                 let screenshot = XCUIScreen.main.screenshot()
                 let imageData = screenshot.pngRepresentation
@@ -129,7 +125,6 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
             if message.contains("find_element_first") {
-                
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let app = XCUIApplication(bundleIdentifier: String(bundle_id))
@@ -138,14 +133,34 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                     let index = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
                     element = app.descendants(matching: .any).element(boundBy: Int(index)!)
                 }else{
-             
-            
                     let predicate = NSPredicate(format: condition)
                     element = app.descendants(matching: .any).element(matching: predicate).firstMatch
                 }
-                let  responseData = get_element_to_json(element: element)
-                sock.write(responseData, withTimeout: -1, tag: 0)
+                var  responseData = ""
+                if !element.exists {
+                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
+
+                }else{
+                    responseData = element.snapshotToString()
+                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
+                }
                 
+            }
+            if message.contains("find_elements_by"){
+                var element_info_list: [String] = []
+                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
+                let predicate = NSPredicate(format: condition)
+                let elements = app.descendants(matching: .any).matching(predicate)
+                for i in 0..<elements.count {
+                    let element = elements.element(boundBy: i)
+                    element_info_list.append(element.snapshotToString())
+                }
+                let combinedString = element_info_list.joined(separator: ", ")
+                if let responseData = combinedString.data(using: .utf8) {
+                    sock.write(responseData, withTimeout: -1, tag: 0)
+                }
             }
             if message.contains("get_current_bundleIdentifier") {
                             let ios_system_bundle_identifiers = [
@@ -187,17 +202,26 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
     
-            if message.contains("find_by_xpath"){
+            if message.contains("find_element_by"){
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let xpath = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let FindElement = FindElement()
-                let app = XCUIApplication(bundleIdentifier:String(bundle_id))
-                let element = FindElement.find_element_by_xpath(bundle_id: bundle_id, app: app, xpath: xpath)
-                let  responseData = get_element_to_json(element: element)
-                sock.write(responseData, withTimeout: -1, tag: 0)
-
+                var app = XCUIApplication(bundleIdentifier:String(bundle_id))
+                var FindElement = FindElement()
+                var element:XCUIElement = XCUIApplication()
+                if message.contains("xpath"){
+                    let xpath = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    element = FindElement.find_element_by_xpath(app: app, xpath: xpath)
+                }
+                if message.contains("query"){
+                    element = FindElement.find_element_first(app: app, message: message)
+                }
                 
-                
+                var  responseData = ""
+                if !element.exists {
+                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
+                }else{
+                    responseData = element.snapshotToString()
+                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
+                }
             }
             if message.contains("action") {
                 UIView.setAnimationsEnabled(false)
