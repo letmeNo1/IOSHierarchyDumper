@@ -8,7 +8,13 @@
 import XCTest
      
 class FindElement {
-    func getVisibleElementsDescription(element: XCUIElement, indent: String = "") -> String {
+    var app: XCUIApplication
+
+    init(app: XCUIApplication) {
+            // 为属性赋初始值
+        self.app = app
+    }
+    private func getVisibleElementsDescription(element: XCUIElement, indent: String = "") -> String {
         var description = ""
     
 
@@ -24,27 +30,21 @@ class FindElement {
         return description
     }
     
-    func find_element_by_index(bundle_id: String, app: XCUIApplication, index: String) -> XCUIElement {
-        return app.descendants(matching: .any).element(boundBy: Int(index)!)
+    private func find_element_by_index(index: String) -> XCUIElement {
+        return self.app.descendants(matching: .any).element(boundBy: Int(index)!)
     }
     
-    func find_element_first(app: XCUIApplication, message: String) -> XCUIElement {
+    private func find_element_by_predicate(condition: String) -> XCUIElement {
         var element: XCUIElement
-        let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-        if condition.contains("index"){
-            let index = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
-            element = app.descendants(matching: .any).element(boundBy: Int(index)!)
-        }else{
-            let predicate = NSPredicate(format: condition)
-            element = app.descendants(matching: .any).element(matching: predicate).firstMatch
-        }
+        let predicate = NSPredicate(format: condition)
+        element = self.app.descendants(matching: .any).element(matching: predicate).firstMatch
         return element
     }
     
 
-    func find_element_by_xpath(app: XCUIApplication, xpath: String) -> XCUIElement {
+    private func find_element_by_xpath(xpath: String) -> XCUIElement {
         let path = xpath.split(separator: "/")
-        var element: XCUIElement = app
+        var element: XCUIElement = self.app
         for step in path {
             let components = step.components(separatedBy: "[")
             let type = components[0]
@@ -155,5 +155,19 @@ class FindElement {
             }
         }
         return element
+    }
+    func find_element_by_query(query_method:String, query_value:String) -> XCUIElement{
+        var element:XCUIElement = XCUIApplication()
+        if query_method == "xpath"{
+            element = find_element_by_xpath(xpath: query_value)
+        }
+        if query_method == "index"{
+            element = find_element_by_index(index: query_value)
+        }
+        if query_method == "predicate" {
+            element = find_element_by_predicate(condition: query_value)
+        }
+        return element
+
     }
 }

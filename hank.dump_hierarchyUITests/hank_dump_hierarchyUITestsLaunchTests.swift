@@ -10,20 +10,12 @@ enum SomeError: Error {
 extension XCUIElement {
     func snapshotToString() -> String {
         let response = try! self.snapshot().dictionaryRepresentation
-        let jsonData = try! JSONSerialization.data(withJSONObject: response, options: .prettyPrinted)
+        let jsonData = try! JSONSerialization.data(withJSONObject: response, options: [])
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
             fatalError("String conversion failed")
         }
         return jsonString
     }
-}
-func buildElementTree(_ element: XCUIElement, indent: String = "") -> String {
-    var result = "\(indent)\(String(describing: try? element.snapshot()))\n"
-    for i in 0..<element.children(matching: .any).count {
-        let child = element.children(matching: .any).element(boundBy: i)
-        result += buildElementTree(child, indent: indent + "  ")
-    }
-    return result
 }
 
 
@@ -34,6 +26,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
     var connectedSockets = [GCDAsyncSocket]()
     var testExpectation: XCTestExpectation?
     var expectations: [XCTestExpectation] = []
+    var element_dict = [String: XCUIElement]()
 
     override func setUp() {
         super.setUp()
@@ -124,29 +117,8 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
         
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
-            if message.contains("find_element_first") {
-                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                var element:XCUIElement
-                if condition.contains("index"){
-                    let index = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    element = app.descendants(matching: .any).element(boundBy: Int(index)!)
-                }else{
-                    let predicate = NSPredicate(format: condition)
-                    element = app.descendants(matching: .any).element(matching: predicate).firstMatch
-                }
-                var  responseData = ""
-                if !element.exists {
-                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
-
-                }else{
-                    responseData = element.snapshotToString()
-                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
-                }
-                
-            }
-            if message.contains("find_elements_by"){
+            
+            if message.contains("find_elements_by_query"){
                 var element_info_list: [String] = []
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -202,18 +174,16 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 sock.write(imageData, withTimeout: -1, tag: 0)
             }
     
-            if message.contains("find_element_by"){
+            if message.contains("find_element_by_query"){
+                var element:XCUIElement
+               
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                var app = XCUIApplication(bundleIdentifier:String(bundle_id))
-                var FindElement = FindElement()
-                var element:XCUIElement = XCUIApplication()
-                if message.contains("xpath"){
-                    let xpath = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    element = FindElement.find_element_by_xpath(app: app, xpath: xpath)
-                }
-                if message.contains("query"){
-                    element = FindElement.find_element_first(app: app, message: message)
-                }
+                let query_method = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let query_value = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let app = XCUIApplication(bundleIdentifier:String(bundle_id))
+                let FindElement = FindElement(app:app)
+                element = XCUIApplication()
+                element = FindElement.find_element_by_query(query_method:query_method,query_value:query_value)
                 
                 var  responseData = ""
                 if !element.exists {
@@ -223,45 +193,47 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                     sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
                 }
             }
-            if message.contains("action") {
-                UIView.setAnimationsEnabled(false)
-                DispatchQueue.main.async {
-                    let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let bundle_id = message_debug.split(separator: ":")[1]
-                    print(bundle_id + "is the bundle id")
-                    let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                    let action = message_debug.split(separator: ":")[2]
-                    let xPixel = CGFloat(Float(message_debug.split(separator: ":")[3]) ?? 0.0)
-                    let yPixel = CGFloat(Float(message_debug.split(separator: ":")[4]) ?? 0.0)
-                    let windowFrame = app.windows.element(boundBy: 0).frame
-                    let windowWidth = windowFrame.width
-                    let windowHeight = windowFrame.height
-                    let xNormalized = xPixel / windowWidth
-                    let yNormalized = yPixel / windowHeight
+            if message.contains("element_action"){
+                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let app = XCUIApplication(bundleIdentifier:String(bundle_id))
+                let action = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let action_parms = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let query_method = String(message.split(separator: ":")[4]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let query_value = String(message.split(separator: ":")[5]).trimmingCharacters(in: .whitespacesAndNewlines)
+                var element:XCUIElement
+                let FindElement = FindElement(app:app)
 
-                    let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: xNormalized, dy: yNormalized))
-                    
-                    switch action {
-                    case "tap":
-                        coordinate.tap()
-                    case "longPress":
-                        let duration = Double(message_debug.split(separator: ":")[5]) ?? 1.0
-                        coordinate.press(forDuration: duration)
-                    case "drag":
-                        let x2Pixel = CGFloat(Float(message_debug.split(separator: ":")[5]) ?? 0.0)
-                        let y2Pixel = CGFloat(Float(message_debug.split(separator: ":")[6]) ?? 0.0)
-                        let x2Normalized = x2Pixel / windowWidth
-                        let y2Normalized = y2Pixel / windowHeight
-                        let destinationCoordinate = XCUIApplication().coordinate(withNormalizedOffset: CGVector(dx: x2Normalized, dy: y2Normalized))
-                        let dragDuration = Double(message_debug.split(separator: ":")[7]) ?? 1.0
-                        coordinate.press(forDuration: dragDuration, thenDragTo: destinationCoordinate)
-                    case "typeText":
-                        let text = String(message_debug.split(separator: ":")[3])
-                        app.typeText(text)
-                    default:
-                        print("Unknown action: \(action)")
-                    }
+                if let current_element = element_dict[message]{
+                    print("Found element: \(current_element)")
+                    element = current_element
                 }
+                else{
+                    element = FindElement.find_element_by_query(query_method: query_method,query_value:query_value)
+                }
+                let xPixel  = element.frame.origin.x + element.frame.size.width / 2
+                let yPixel = element.frame.origin.y + element.frame.size.height / 2
+                let ElementAction = ElementAction(app:app,xPixel:xPixel,yPixel:yPixel,action_parms:action_parms)
+                ElementAction.perform_action(action: action)
+
+                
+            }
+            if message.contains("coordinate_action") {
+                let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                let bundle_id = message_debug.split(separator: ":")[1]
+                print(bundle_id + "is the bundle id")
+                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
+                let action = message_debug.split(separator: ":")[2]
+                let xPixel = CGFloat(Float(message_debug.split(separator: ":")[3]) ?? 0.0)
+                let yPixel = CGFloat(Float(message_debug.split(separator: ":")[4]) ?? 0.0)
+                let action_parms = String(message.split(separator: ":")[5]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let ElementAction = ElementAction(app:app,xPixel:xPixel,yPixel:yPixel,action_parms:action_parms)
+                ElementAction.perform_action(action: String(action))
+            }
+            if message.contains("device_action") {
+                let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                let action = message_debug.split(separator: ":")[1]
+                let DeviceAction = DeviceAction()
+                DeviceAction.perform_action(action: String(action))
             }
             
               }
