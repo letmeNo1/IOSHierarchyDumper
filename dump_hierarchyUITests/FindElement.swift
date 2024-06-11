@@ -34,6 +34,8 @@ class FindElement {
         return self.app.descendants(matching: .any).element(boundBy: Int(index)!)
     }
     
+    
+    
     private func find_element_by_predicate(condition: String) -> XCUIElement {
         var element: XCUIElement
         let predicate = NSPredicate(format: condition)
@@ -67,7 +69,7 @@ class FindElement {
                 element = element.children(matching: .drawer).element(boundBy: index)
             case "Alert":
                 element = element.children(matching: .alert).element(boundBy: index)
-            case "Dialog"
+            case "Dialog":
                 element = element.children(matching: .dialog).element(boundBy: index)
             case "Button":
                 element = element.children(matching: .button).element(boundBy: index)
@@ -129,7 +131,7 @@ class FindElement {
                 element = element.children(matching: .picker).element(boundBy: index)
             case "PickerWheel":
                 element = element.children(matching: .pickerWheel).element(boundBy: index)
-            case "Switch":  
+            case "Switch":
                 element = element.children(matching: .switch).element(boundBy: index)
             case "Toggle":
                 element = element.children(matching: .toggle).element(boundBy: index)
@@ -141,6 +143,12 @@ class FindElement {
                 element = element.children(matching: .icon).element(boundBy: index)
             case "SearchField":
                 element = element.children(matching: .searchField).element(boundBy: index)
+            case "ScrollView":
+                element = element.children(matching: .scrollView).element(boundBy: index)
+            case "ScrollBar":
+                element = element.children(matching: .scrollBar).element(boundBy: index)
+            case "StaticText":
+                element = element.children(matching: .staticText).element(boundBy: index)
             case "TextField":
                 element = element.children(matching: .textField).element(boundBy: index)
             case "SecureTextField":
@@ -229,4 +237,5 @@ class FindElement {
         return element
 
     }
+    
 }

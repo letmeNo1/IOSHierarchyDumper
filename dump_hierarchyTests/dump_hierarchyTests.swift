@@ -1,14 +1,14 @@
 //
-//  hank_dump_hierarchyTests.swift
-//  hank.dump_hierarchyTests
+//  dump_hierarchyTests.swift
+//  dump_hierarchyTests
 //
-//  Created by Automation on 2024/3/7.
+//  Created by Automation on 2024/4/28.
 //
 
 import XCTest
-@testable import hank_dump_hierarchy
+@testable import dump_hierarchy
 
-final class hank_dump_hierarchyTests: XCTestCase {
+final class dump_hierarchyTests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

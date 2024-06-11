@@ -18,4 +18,5 @@ class DeviceAction {
             print("Unknown action: \(action)")
         }
     }
+    
 }
