@@ -1,13 +1,13 @@
 //
-//  hank_dump_hierarchyUITests.swift
-//  hank.dump_hierarchyUITests
+//  dump_hierarchyUITests.swift
+//  dump_hierarchyUITests
 //
-//  Created by Automation on 2024/3/7.
+//  Created by Automation on 2024/4/28.
 //
 
 import XCTest
 
-final class hank_dump_hierarchyUITests: XCTestCase {
+final class dump_hierarchyUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -33,9 +33,9 @@ final class hank_dump_hierarchyUITests: XCTestCase {
     func testLaunchPerformance() throws {
         if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
             // This measures how long it takes to launch your application.
-//            measure(metrics: [XCTApplicationLaunchMetric()]) {
-//                XCUIApplication().launch()
-//            }
+            measure(metrics: [XCTApplicationLaunchMetric()]) {
+                XCUIApplication().launch()
+            }
         }
     }
 }

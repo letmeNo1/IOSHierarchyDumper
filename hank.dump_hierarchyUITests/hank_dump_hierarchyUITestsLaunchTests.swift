@@ -27,7 +27,8 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
     var testExpectation: XCTestExpectation?
     var expectations: [XCTestExpectation] = []
     var element_dict = [String: XCUIElement]()
-
+    var isRecording = false
+    var images: [UIImage] = []
     override func setUp() {
         super.setUp()
         continueAfterFailure = false
@@ -110,8 +111,73 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                        sock.write(responseData, withTimeout: -1, tag: 0)
                }
             }
+            
+            if message.contains("start_recording") {
+                isRecording = true
+                images = []
+                var screenshotCount = 0
+                let maxScreenshots = 100 // 设置最大截图数量
+
+                DispatchQueue.global(qos: .background).async { [weak self] in
+                    guard let self = self else { return }
+                    while self.isRecording && screenshotCount < maxScreenshots {
+                        DispatchQueue.main.async {
+                            let screenshot = XCUIScreen.main.screenshot()
+                            let image = screenshot.image
+                            self.images.append(image)
+                        }
+                        screenshotCount += 1
+                        usleep(100_000)
+                        // 等待1秒钟后再进行下一次截图
+                    }
+                }
+            }
+
+            
+            if message.contains("stop_recording") {
+                isRecording = false
+
+                // 将所有图像数据与结束标记组合在一起进行一次写入
+                var dataToSend = Data()
+
+                for image in images {
+                    if let jpegData = image.jpegData(compressionQuality: 0.1) {
+                        print(jpegData)
+                        sock.write(jpegData, withTimeout: -1, tag: 0)
+                        sock.write("end_with".data(using: .utf8), withTimeout: -1, tag: 0)
+
+                    }
+                }
+
+
+                // 清空图像数组
+                images.removeAll()
+            }
+            
+            if message.contains("get_actual_wh") {
+                // 获取 SpringBoard 应用程序
+                let app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+                
+                // 获取窗口框架
+                let windowFrame = app.windows.element(boundBy: 0).frame
+                
+                // 获取窗口宽度和高度
+                let windowWidth = windowFrame.width
+                let windowHeight = windowFrame.height
+                
+                // 将宽度和高度格式化为字符串
+                let result = "\(windowWidth),\(windowHeight)"
+                
+                // 将结果转换为数据并写入套接字
+                if let data = result.data(using: .utf8) {
+                    sock.write(data, withTimeout: -1, tag: 0)
+                } else {
+                    print("Error: Could not convert result to data.")
+                }
+            }
+
           
-            if message.contains("get_pic"){
+            if message.contains("get_png_pic"){
                 let screenshot = XCUIScreen.main.screenshot()
                 let imageData = screenshot.pngRepresentation
         
@@ -121,7 +187,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
             if message.contains("find_elements_by_query"){
                 var element_info_list: [String] = []
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let condition = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let condition = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let app = XCUIApplication(bundleIdentifier: String(bundle_id))
                 let predicate = NSPredicate(format: condition)
                 let elements = app.descendants(matching: .any).matching(predicate)
@@ -129,7 +195,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                     let element = elements.element(boundBy: i)
                     element_info_list.append(element.snapshotToString())
                 }
-                let combinedString = element_info_list.joined(separator: ", ")
+                let combinedString = element_info_list.joined(separator: ",")
                 if let responseData = combinedString.data(using: .utf8) {
                     sock.write(responseData, withTimeout: -1, tag: 0)
                 }
@@ -148,6 +214,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                                 "com.apple.mobilenotes",
                                 "com.apple.Music",
                                 "com.apple.Maps",
+                                "com.apple.InCallService",
                                 "com.apple.springboard"
                             ]
                             let messageParts = message.split(separator: ":").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -166,20 +233,30 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                                    sock.write(responseData, withTimeout: -1, tag: 0)
                                }
             }
-            if message.contains("get_pic"){
+            if message.contains("get_jpg_pic"){
+                let compressionQualityString = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let screenshot = XCUIScreen.main.screenshot()
-                let imageData = screenshot.pngRepresentation
-                print(imageData)
-                        // 直接发送屏幕截图数据
-                sock.write(imageData, withTimeout: -1, tag: 0)
+                let image = screenshot.image
+                if let doubleValue = Double(compressionQualityString) {
+                    // 将 Double 转换为 CGFloat
+                    let compressionQuality = CGFloat(doubleValue)
+                    if let jpegData = image.jpegData(compressionQuality: compressionQuality) {
+                        sock.write(jpegData, withTimeout: -1, tag: 0)
+                    }
+                }else{
+                    sock.write("error format".data(using: .utf8), withTimeout: -1, tag: 0)
+                }
+            
             }
     
             if message.contains("find_element_by_query"){
                 var element:XCUIElement
-               
+                let components = message.components(separatedBy: ":")
+
                 let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let query_method = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let query_value = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let query_value = components[3...].joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
+                print(query_value)
                 let app = XCUIApplication(bundleIdentifier:String(bundle_id))
                 let FindElement = FindElement(app:app)
                 element = XCUIApplication()
@@ -235,8 +312,16 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
                 let DeviceAction = DeviceAction()
                 DeviceAction.perform_action(action: String(action))
             }
+            if message.contains("device_info") {
+                let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = message_debug.split(separator: ":")[1]
+                let DeviceInfo = DeviceInfo()
+                let reslut = DeviceInfo.get_info(value: String(value))
+                sock.write(reslut.data(using: .utf8), withTimeout: -1, tag: 0)
+
+            }
             
-              }
+        }
               sock.disconnectAfterWriting()
     }
     
