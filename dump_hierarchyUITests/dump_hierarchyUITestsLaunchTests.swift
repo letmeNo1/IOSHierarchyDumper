@@ -4,23 +4,21 @@ import Foundation
 import UIKit
 
 enum SomeError: Error {
-    case StringConversionFailed
+    case stringConversionFailed
 }
 
 extension XCUIElement {
-    func snapshotToString() -> String {
-        let response = try! self.snapshot().dictionaryRepresentation
-        let jsonData = try! JSONSerialization.data(withJSONObject: response, options: [])
+    func snapshotToString() throws -> String {
+        let response = try self.snapshot().dictionaryRepresentation
+        let jsonData = try JSONSerialization.data(withJSONObject: response, options: [])
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            fatalError("String conversion failed")
+            throw SomeError.stringConversionFailed
         }
         return jsonString
     }
 }
 
-
-
-class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
+class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     var listenThread: Thread!
     var listenSocket: GCDAsyncSocket!
     var connectedSockets = [GCDAsyncSocket]()
@@ -29,6 +27,7 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
     var element_dict = [String: XCUIElement]()
     var isRecording = false
     var images: [UIImage] = []
+
     override func setUp() {
         super.setUp()
         continueAfterFailure = false
@@ -51,9 +50,8 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
         listenSocket = nil
         listenThread.cancel()
     }
-    
-    func testClienth() {
 
+    func testClienth() {
         for i in 0..<100 {
             let expectation = XCTestExpectation(description: "Receive response from server \(i)")
             expectations.append(expectation)
@@ -63,17 +61,17 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
         wait(for: expectations, timeout: 99990.0)
     }
 
-    func startServer() {
-        var customValueInt:UInt16 = 8200
+    @objc func startServer() {
+        var customValueInt: UInt16 = 8200
         listenSocket = GCDAsyncSocket(delegate: self, delegateQueue: DispatchQueue.main)
         do {
             if let customValueString = ProcessInfo.processInfo.environment["USE_PORT"] {
-                        customValueInt = UInt16(customValueString) ?? 8200
-                        print("The value of USE_PORT is: \(customValueString)")
-                   } else {
-                       // 环境变量未设置
-                        print("USE_PORT is not set.")
-                   }
+                customValueInt = UInt16(customValueString) ?? 8200
+                print("The value of USE_PORT is: \(customValueString)")
+            } else {
+                // 环境变量未设置
+                print("USE_PORT is not set.")
+            }
             try listenSocket.accept(onPort: customValueInt)
             print("Listening on port \(listenSocket.localPort)")
             RunLoop.current.run()
@@ -90,254 +88,350 @@ class MyServerTests: XCTestCase,GCDAsyncSocketDelegate  {
 
     func socket(_ sock: GCDAsyncSocket, didRead data: Data, withTag tag: Int) {
         if let message = String(data: data, encoding: .utf8) {
-                  
-                  print("Received message: \(message)")
-                  if message.contains("Close") {
-                      tearDown()
-                  }
-                  if message.contains("print") {
-                      let response = "HTTP/1.1 200 OK\r\n\r\n"
-                      if let responseData = response.data(using: .utf8) {
-                          sock.write(responseData, withTimeout: -1, tag: 0)
-                      }
-                  }
-            if message.contains("dump_tree") {
-                    let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    print(bundle_id + "is the bundle id")
-                    let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-//                     app.launch()
-                    let response = app.debugDescription
-                    if let responseData = response.data(using: .utf8) {
-                       sock.write(responseData, withTimeout: -1, tag: 0)
-               }
-            }
-
-            if message.contains("active_app") {
-                    let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    print(bundle_id + "is the bundle id")
-                    let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                    app.activate()
-            }
-            if message.contains("terminate_app") {
-                    let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    print(bundle_id + "is the bundle id")
-                    let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                    app.terminate()
-            }
-
-
-            
-            if message.contains("start_recording") {
-                isRecording = true
-                images = []
-                var screenshotCount = 0
-                let maxScreenshots = 100 // 设置最大截图数量
-
-                DispatchQueue.global(qos: .background).async { [weak self] in
-                    guard let self = self else { return }
-                    while self.isRecording && screenshotCount < maxScreenshots {
-                        DispatchQueue.main.async {
-                            let screenshot = XCUIScreen.main.screenshot()
-                            let image = screenshot.image
-                            self.images.append(image)
-                        }
-                        screenshotCount += 1
-                        usleep(100_000)
-                        // 等待1秒钟后再进行下一次截图
-                    }
-                }
-            }
-
-            
-            if message.contains("stop_recording") {
-                isRecording = false
-
-                // 将所有图像数据与结束标记组合在一起进行一次写入
-                var dataToSend = Data()
-
-                for image in images {
-                    if let jpegData = image.jpegData(compressionQuality: 0.1) {
-                        print(jpegData)
-                        sock.write(jpegData, withTimeout: -1, tag: 0)
-                        sock.write("end_with".data(using: .utf8), withTimeout: -1, tag: 0)
-
-                    }
-                }
-
-
-                // 清空图像数组
-                images.removeAll()
-            }
-            
-            if message.contains("get_actual_wh") {
-                // 获取 SpringBoard 应用程序
-                let app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-                
-                // 获取窗口框架
-                let windowFrame = app.windows.element(boundBy: 0).frame
-                
-                // 获取窗口宽度和高度
-                let windowWidth = windowFrame.width
-                let windowHeight = windowFrame.height
-                
-                // 将宽度和高度格式化为字符串
-                let result = "\(windowWidth),\(windowHeight)"
-                
-                // 将结果转换为数据并写入套接字
-                if let data = result.data(using: .utf8) {
-                    sock.write(data, withTimeout: -1, tag: 0)
-                } else {
-                    print("Error: Could not convert result to data.")
-                }
-            }
-
-          
-            if message.contains("get_png_pic"){
-                let screenshot = XCUIScreen.main.screenshot()
-                let imageData = screenshot.pngRepresentation
-        
-                sock.write(imageData, withTimeout: -1, tag: 0)
-            }
-            
-            if message.contains("find_elements_by_query"){
-                var element_info_list: [String] = []
-                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let condition = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                let predicate = NSPredicate(format: condition)
-                let elements = app.descendants(matching: .any).matching(predicate)
-                for i in 0..<elements.count {
-                    let element = elements.element(boundBy: i)
-                    element_info_list.append(element.snapshotToString())
-                }
-                let combinedString = element_info_list.joined(separator: ",")
-                if let responseData = combinedString.data(using: .utf8) {
-                    sock.write(responseData, withTimeout: -1, tag: 0)
-                }
-            }
-            if message.contains("get_current_bundleIdentifier") {
-                            let ios_system_bundle_identifiers = [
-                                "com.apple.Preferences",
-                                "com.apple.mobilephone",
-                                "com.apple.MobileSMS",
-                                "com.apple.camera",
-                                "com.apple.mobileslideshow",
-                                "com.apple.mobilemail",
-                                "com.apple.mobilesafari",
-                                "com.apple.mobilecal",
-                                "com.apple.reminders",
-                                "com.apple.mobilenotes",
-                                "com.apple.Music",
-                                "com.apple.Maps",
-                                "com.apple.InCallService",
-                                "com.apple.springboard"
-                            ]
-                            let messageParts = message.split(separator: ":").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                               var response = "No frontmost app found"
-                               if messageParts.count > 1 {
-                                   let bundle_ids = Array(messageParts[1...]) + ios_system_bundle_identifiers
-                                   for bundleId in bundle_ids {
-                                       let app = XCUIApplication(bundleIdentifier: bundleId)
-                                       if app.state == .runningForeground {
-                                           response = bundleId
-                                           break
-                                       }
-                                   }
-                               }
-                               if let responseData = response.data(using: .utf8) {
-                                   sock.write(responseData, withTimeout: -1, tag: 0)
-                               }
-            }
-            if message.contains("get_jpg_pic"){
-                let compressionQualityString = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let screenshot = XCUIScreen.main.screenshot()
-                let image = screenshot.image
-                if let doubleValue = Double(compressionQualityString) {
-                    // 将 Double 转换为 CGFloat
-                    let compressionQuality = CGFloat(doubleValue)
-                    if let jpegData = image.jpegData(compressionQuality: compressionQuality) {
-                        sock.write(jpegData, withTimeout: -1, tag: 0)
-                    }
-                }else{
-                    sock.write("error format".data(using: .utf8), withTimeout: -1, tag: 0)
-                }
-            
-            }
-    
-            if message.contains("find_element_by_query"){
-                var element:XCUIElement
-                let components = message.components(separatedBy: ":")
-
-                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let query_method = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let query_value = components[3...].joined(separator: ":").trimmingCharacters(in: .whitespacesAndNewlines)
-                print(query_value)
-                let app = XCUIApplication(bundleIdentifier:String(bundle_id))
-                let FindElement = FindElement(app:app)
-                element = XCUIApplication()
-                element = FindElement.find_element_by_query(query_method:query_method,query_value:query_value)
-                
-                var  responseData = ""
-                if !element.exists {
-                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
-                }else{
-                    responseData = element.snapshotToString()
-                    sock.write(responseData.data(using: .utf8), withTimeout: -1, tag: 0)
-                }
-            }
-            if message.contains("element_action"){
-                let bundle_id = String(message.split(separator: ":")[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let app = XCUIApplication(bundleIdentifier:String(bundle_id))
-                let action = String(message.split(separator: ":")[2]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let action_parms = String(message.split(separator: ":")[3]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let query_method = String(message.split(separator: ":")[4]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let query_value = String(message.split(separator: ":")[5]).trimmingCharacters(in: .whitespacesAndNewlines)
-                var element:XCUIElement
-                let FindElement = FindElement(app:app)
-
-                if let current_element = element_dict[message]{
-                    print("Found element: \(current_element)")
-                    element = current_element
-                }
-                else{
-                    element = FindElement.find_element_by_query(query_method: query_method,query_value:query_value)
-                }
-                let xPixel  = element.frame.origin.x + element.frame.size.width / 2
-                let yPixel = element.frame.origin.y + element.frame.size.height / 2
-                let ElementAction = ElementAction(app:app,xPixel:xPixel,yPixel:yPixel,action_parms:action_parms)
-                ElementAction.perform_action(action: action)
-
-                
-            }
-            if message.contains("coordinate_action") {
-                let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
-                let bundle_id = message_debug.split(separator: ":")[1]
-                print(bundle_id + "is the bundle id")
-                let app = XCUIApplication(bundleIdentifier: String(bundle_id))
-                let action = message_debug.split(separator: ":")[2]
-                let xPixel = CGFloat(Float(message_debug.split(separator: ":")[3]) ?? 0.0)
-                let yPixel = CGFloat(Float(message_debug.split(separator: ":")[4]) ?? 0.0)
-                let action_parms = String(message.split(separator: ":")[5]).trimmingCharacters(in: .whitespacesAndNewlines)
-                let ElementAction = ElementAction(app:app,xPixel:xPixel,yPixel:yPixel,action_parms:action_parms)
-                ElementAction.perform_action(action: String(action))
-            }
-            if message.contains("device_action") {
-                let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
-                let action = message_debug.split(separator: ":")[1]
-                let DeviceAction = DeviceAction()
-                DeviceAction.perform_action(action: String(action))
-            }
-            if message.contains("device_info") {
-                let message_debug = message.trimmingCharacters(in: .whitespacesAndNewlines)
-                let value = message_debug.split(separator: ":")[1]
-                let DeviceInfo = DeviceInfo()
-                let reslut = DeviceInfo.get_info(value: String(value))
-                sock.write(reslut.data(using: .utf8), withTimeout: -1, tag: 0)
-
-            }
-            
+            print("Received message: \(message)")
+            handleHTTPRequest(message, socket: sock)
         }
-              sock.disconnectAfterWriting()
+        sock.disconnectAfterWriting()
+    }
+
+    private func handleHTTPRequest(_ request: String, socket: GCDAsyncSocket) {
+        let lines = request.components(separatedBy: "\r\n")
+        let firstLine = lines.first?.components(separatedBy: " ")
+        guard let method = firstLine?[0], let path = firstLine?[1] else {
+                let statusCode = 400
+                let headers = ["Content-Type": "text/plain"]
+                let errorMessage = "HTTP/1.1 400 Bad Request\r\n\r\n"
+                let body = errorMessage.data(using: .utf8) ?? Data()
+                sendHTTPResponse((statusCode, headers, body), socket: socket)
+                return
+            }
+
+        if method == "GET" {
+            let components = path.components(separatedBy: "?")
+            let command = components[0].trimmingCharacters(in: .init(charactersIn: "/"))
+            var params = [String: String]()
+            if components.count > 1 {
+                params = parseQueryParams(components[1])
+            }
+
+            var responseBody = ""
+            if command.contains("dump_tree") {
+                responseBody = handleDumpTree(params)
+            } else if command.contains("activate_app") {
+                handleActivateApp(params)
+                responseBody = "App activated"
+            } else if command.contains("terminate_app") {
+                handleTerminateApp(params)
+                responseBody = "App terminated"
+            } else if command.contains("start_recording") {
+                handleStartRecording()
+                responseBody = "Recording started"
+            } else if command.contains("stop_recording") {
+                responseBody = handleStopRecording()
+            } else if command.contains("get_actual_wh") {
+                responseBody = handleGetActualWH()
+            } else if command.contains("get_png_pic") {
+                // 这里需要处理二进制数据的返回，暂时简单返回文本
+                responseBody = "PNG picture data"
+            } else if command.contains("find_elements_by_query") {
+                responseBody = handleFindElementsByQuery(params)
+            } else if command.contains("get_current_bundleIdentifier") {
+                responseBody = handleGetCurrentBundleIdentifier(params)
+            } else if command.contains("get_jpg_pic") {
+                // 这里需要处理二进制数据的返回，暂时简单返回文本
+                let response = handleGetJPGPic(params)
+                sendHTTPResponse(response, socket: socket)
+
+            } else if command.contains("find_element_by_query") {
+                responseBody = handleFindElementByQuery(params)
+            } else if command.contains("coordinate_action") {
+                handleCoordinateAction(params)
+                responseBody = "Coordinate action performed"
+            } else if command.contains("device_action") {
+                handleDeviceAction(params)
+                responseBody = "Device action performed"
+            } else if command.contains("device_info") {
+                responseBody = handleDeviceInfo(params)
+            }else if command.contains("check_status") {
+                responseBody = handleCheckStatus()
+            } else {
+                let errorMessage = "HTTP/1.1 404 Not Found\r\n\r\n".data(using: .utf8) ?? Data()
+                sendHTTPResponse((404, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
+                return
+            }
+
+            let responseData = responseBody.data(using: .utf8) ?? Data()
+            sendHTTPResponse((200, ["Content-Type": "text/plain", "Content-Length": "\(responseData.count)"], responseData), socket: socket)
+        } else {
+            let errorMessage = "HTTP/1.1 405 Method Not Allowed\r\n\r\n".data(using: .utf8) ?? Data()
+            sendHTTPResponse((405, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
+        }
+    }
+
+
+    private func sendHTTPResponse(_ response: (statusCode: Int, headers: [String: String], body: Data), socket: GCDAsyncSocket) {
+        var responseString = "HTTP/1.1 \(response.statusCode) "
+        switch response.statusCode {
+        case 200:
+            responseString += "OK"
+        case 400:
+            responseString += "Bad Request"
+        default:
+            responseString += "Unknown Status"
+        }
+        responseString += "\r\n"
+
+        for (key, value) in response.headers {
+            responseString += "\(key): \(value)\r\n"
+        }
+        responseString += "\r\n"
+
+        if let responseData = responseString.data(using: .utf8) {
+            let finalData = responseData + response.body
+            socket.write(finalData, withTimeout: -1, tag: 0)
+        }
+    }
+
+
+    private func parseQueryParams(_ paramString: String) -> [String: String] {
+        var params = [String: String]()
+        let pairs = paramString.components(separatedBy: "&")
+        for pair in pairs {
+            let keyValue = pair.components(separatedBy: "=")
+            if keyValue.count == 2 {
+                // 先把 + 号替换为空格
+                let decodedKey = keyValue[0].replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? ""
+                let decodedValue = keyValue[1].replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? ""
+                params[decodedKey] = decodedValue
+            }
+        }
+        return params
+    }
+
+
+    private func handleDumpTree(_ params: [String: String]) -> String {
+        guard let bundle_id = params["bundle_id"] else { return "Missing bundle_id parameter" }
+        print("\(bundle_id) is the bundle id")
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        return app.debugDescription
+    }
+
+    private func handleActivateApp(_ params: [String: String]) {
+        guard let bundle_id = params["c"] else { return }
+        print("\(bundle_id) is the bundle id")
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        app.activate()
+    }
+
+    private func handleTerminateApp(_ params: [String: String]) {
+        guard let bundle_id = params["bundle_id"] else { return }
+        print("\(bundle_id) is the bundle id")
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        app.terminate()
+    }
+
+    private func handleStartRecording() {
+        isRecording = true
+        images = []
+        var screenshotCount = 0
+        let maxScreenshots = 100 // 设置最大截图数量
+
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            while self.isRecording && screenshotCount < maxScreenshots {
+                DispatchQueue.main.async {
+                    let screenshot = XCUIScreen.main.screenshot()
+                    let image = screenshot.image
+                    self.images.append(image)
+                }
+                screenshotCount += 1
+                usleep(100_000)
+                // 等待1秒钟后再进行下一次截图
+            }
+        }
+    }
+
+    private func handleStopRecording() -> String {
+        isRecording = false
+        // 这里简单返回文本，实际需要处理图像数据
+        return "Recording stopped"
+    }
+
+    private func handleGetActualWH() -> String {
+        // 获取 SpringBoard 应用程序
+        let app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+
+        // 获取窗口框架
+        let windowFrame = app.windows.element(boundBy: 0).frame
+
+        // 获取窗口宽度和高度
+        let windowWidth = windowFrame.width
+        let windowHeight = windowFrame.height
+
+        // 将宽度和高度格式化为字符串
+        return "\(windowWidth),\(windowHeight)"
+    }
+
+    private func handleFindElementsByQuery(_ params: [String: String]) -> String {
+        guard let bundle_id = params["bundle_id"], let query_method = params["query_method"], let query_value = params["query_value"] else { return "Missing parameters" }
+        var element_info_list: [String] = []
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        var predicate: NSPredicate?
+        
+        switch query_method {
+        case "label":
+            predicate = NSPredicate(format: "label == %@", query_value)
+        case "identifier":
+            predicate = NSPredicate(format: "identifier == %@", query_value)
+        case "value":
+            predicate = NSPredicate(format: "value == %@", query_value)
+        default:
+            return "Unsupported query method"
+        }
+        
+        if let predicate = predicate {
+            let elements = app.descendants(matching: .any).matching(predicate)
+            for i in 0..<elements.count {
+                let element = elements.element(boundBy: i)
+                do {
+                    let elementString = try element.snapshotToString()
+                    element_info_list.append(elementString)
+                } catch {
+                    print("Error converting element snapshot to string: \(error)")
+                }
+            }
+        }
+        
+        return element_info_list.joined(separator: ",")
+    }
+
+    private func handleGetCurrentBundleIdentifier(_ params: [String: String]) -> String {
+        let ios_system_bundle_identifiers = [
+            "com.apple.Preferences",
+            "com.apple.mobilephone",
+            "com.apple.MobileSMS",
+            "com.apple.camera",
+            "com.apple.mobileslideshow",
+            "com.apple.mobilemail",
+            "com.apple.mobilesafari",
+            "com.apple.mobilecal",
+            "com.apple.reminders",
+            "com.apple.mobilenotes",
+            "com.apple.Music",
+            "com.apple.Maps",
+            "com.apple.InCallService",
+            "com.apple.springboard"
+        ]
+        var response = "No frontmost app found"
+        if let bundle_idsString = params["bundle_ids"] {
+            let bundle_ids = bundle_idsString.components(separatedBy: ",") + ios_system_bundle_identifiers
+            for bundleId in bundle_ids {
+                let app = XCUIApplication(bundleIdentifier: bundleId)
+                if app.state == .runningForeground {
+                    response = bundleId
+                    break
+                }
+            }
+        }
+        return response
+    }
+
+    private func handleGetJPGPic(_ params: [String: String]) -> (statusCode: Int, headers: [String: String], body: Data) {
+        guard let compressionQualityString = params["compression_quality"] else {
+            let errorMessage = "error format".data(using: .utf8) ?? Data()
+            return (400, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage)
+        }
+
+        let screenshot = XCUIScreen.main.screenshot()
+        let image = screenshot.image
+        if let doubleValue = Double(compressionQualityString) {
+            let compressionQuality = CGFloat(doubleValue)
+            if let jpegData = image.jpegData(compressionQuality: compressionQuality) {
+                return (200, ["Content-Type": "image/jpeg", "Content-Length": "\(jpegData.count)"], jpegData)
+            }
+        }
+
+        let errorMessage = "error format".data(using: .utf8) ?? Data()
+        return (400, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage)
+    }
+
+
+    private func handleFindElementByQuery(_ params: [String: String]) -> String {
+        guard let bundle_id = params["bundle_id"]?.removingPercentEncoding,
+              let query_method = params["query_method"]?.removingPercentEncoding,
+              let query_value = params["query_value"]?.removingPercentEncoding else {
+            return "Missing parameters"
+        }
+        print(query_value)
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        let FindElement = FindElement(app: app)
+        let element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
+        var responseData = ""
+        if !element.exists {
+            return responseData
+        }
+        do {
+            responseData = try element.snapshotToString()
+        } catch {
+            print("Error converting element snapshot to string: \(error)")
+        }
+        return responseData
+    }
+
+
+    private func handleElementAction(_ params: [String: String]) {
+        guard let bundle_id = params["bundle_id"], let action = params["action"], let action_parms = params["action_parms"], let query_method = params["query_method"], let query_value = params["query_value"] else { return }
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        var element: XCUIElement
+        let FindElement = FindElement(app: app)
+        let key = "\(bundle_id)|\(action)|\(action_parms)|\(query_method)|\(query_value)"
+        if let current_element = element_dict[key] {
+            print("Found element: \(current_element)")
+            element = current_element
+        } else {
+            element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
+        }
+        let xPixel = element.frame.origin.x + element.frame.size.width / 2
+        let yPixel = element.frame.origin.y + element.frame.size.height / 2
+        let ElementAction = ElementAction(app: app, xPixel: xPixel, yPixel: yPixel, action_parms: action_parms)
+        ElementAction.perform_action(action: action)
+    }
+
+    private func handleCoordinateAction(_ params: [String: String]) {
+        guard let bundle_id = params["bundle_id"],
+              let action = params["action"],
+              let xPixelString = params["xPixel"],
+              let yPixelString = params["yPixel"],
+              let action_parms = params["action_parms"] else {
+            return
+        }
+        
+        print("\(bundle_id) is the bundle id")
+        let app = XCUIApplication(bundleIdentifier: bundle_id)
+        
+        // 分步处理：先确保字符串转 Float 成功，再转 CGFloat（Float 转 CGFloat 是确定操作，无需额外可选绑定）
+        if let xFloat = Float(xPixelString),
+           let yFloat = Float(yPixelString) {
+            let xPixel = CGFloat(xFloat)
+            let yPixel = CGFloat(yFloat)
+            let ElementAction = ElementAction(app: app, xPixel: xPixel, yPixel: yPixel, action_parms: action_parms)
+            ElementAction.perform_action(action: action)
+        }
+    }
+
+    private func handleDeviceAction(_ params: [String: String]) {
+        guard let action = params["action"] else { return }
+        let DeviceAction = DeviceAction()
+        DeviceAction.perform_action(action: action)
+    }
+
+    private func handleDeviceInfo(_ params: [String: String]) -> String {
+        guard let value = params["value"] else { return "Missing value parameter" }
+        let DeviceInfo = DeviceInfo()
+        return DeviceInfo.get_info(value: value)
     }
     
+    private func handleCheckStatus() -> String {
+            return "server running"
+        }
 }
