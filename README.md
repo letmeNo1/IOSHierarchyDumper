@@ -1,3 +1,7 @@
+[English Documentation](##Table of Contents) | [中文文档](##目录)
+
+
+
 # IOSHierarchyDumper
 
 本项目是一个基于 XCTest 和 GCDAsyncSocket 的 iOS 自动化测试服务器，它允许客户端通过 HTTP 请求与 iOS 设备进行交互，执行各种自动化测试任务，如应用激活、终止、元素查找、屏幕截图、录制等。
@@ -208,11 +212,12 @@ Content-Length: ...
 
 ```plaintext
 请求：
-GET http://localhost:8200/find_elements_by_query?bundle_id=com.example.app&condition=label == 'Button'
+GET http://localhost:8200/find_element_by_query?bundle_id=com.example.app&query_method=predicate&query_value=label == 'Button'
 
 参数说明：
-- bundle_id: 目标应用的 Bundle Identifier，例如 'com.example.app'。
-- condition: 查询条件，使用 NSPredicate 格式。这里的 'label == 'Button'' 表示查找标签为 'Button' 的元素。
+- bundle_id: 当前运行应用的 Bundle Identifier，例如 'com.example.app'(不要填错，否则会进入死循环)。
+- query_method: 查询方法 仅支持 'predicate'
+- query_value:  'label == 'Button'' 表示查找标签为 'Button' 的元素。
 
 响应：
 HTTP/1.1 200 OK
@@ -233,7 +238,7 @@ Content-Length: ...
 GET http://localhost:8200/find_element_by_query?bundle_id=com.example.app&query_method=predicate&query_value=label == 'Button'
 
 参数说明：
-- bundle_id: 目标应用的 Bundle Identifier，例如 'com.example.app'。
+- bundle_id: 当前运行应用的 Bundle Identifier，例如 'com.example.app'(不要填错，否则会进入死循环)。
 - query_method: 查询方法，支持 'xpath'、'index'、'predicate' 等。这里使用 'predicate' 表示使用谓词查询。
 - query_value: 查询值，根据查询方法的不同而不同。当查询方法为 'predicate' 时，这里的 'label == 'Button'' 表示查找标签为 'Button' 的元素。
 
@@ -252,6 +257,9 @@ Content-Length: ...
 ```plaintext
 请求：
 GET http://localhost:8200/get_current_bundleIdentifier?bundle_ids=com.example.app1,com.example.app2
+
+参数说明：
+- bundle_ids: 当前手机上所有安装的应用包名
 
 响应：
 HTTP/1.1 200 OK
@@ -314,3 +322,294 @@ Content-Length: ...
 
 ## 许可证
 本项目遵循 [MIT 许可证](https://opensource.org/licenses/MIT)，你可以自由使用、修改和分发本项目。
+
+
+# IOSHierarchyDumper
+
+This project is an iOS automated testing server based on XCTest and GCDAsyncSocket, allowing clients to interact with iOS devices via HTTP requests for various automated testing tasks such as app activation, termination, element lookup, screenshots, screen recording, etc.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contribution](#contribution)
+- [License](#license)
+
+## Installation
+
+### 1. Clone the Repository
+Use the following command to clone the repository locally:
+```bash
+git clone https://github.com/letmeNo1/IOSHierarchyDumper.git
+```
+
+### 2. Open the Project
+Navigate to the project directory:
+```bash
+cd IOSHierarchyDumper
+```
+Open the project using:
+```bash
+open dump_hierarchy.xcodeproj
+```
+Alternatively, double-click `dump_hierarchy.xcodeproj` in the file explorer.
+
+### 3. Configure Signing Settings
+In Xcode:
+1. Select the project in the navigator.
+2. Go to the `Signing & Capabilities` tab.
+3. Ensure a valid team is selected under `Signing`.
+
+![0cacb5abdb80a99ae0f489a726fd1a0](https://github.com/user-attachments/assets/bf93f97f-7dac-4cdd-a8b5-d9eed9be8907)
+
+### 4. Compile and Install
+Use `Cmd + U` or `Product > Test` to compile and run the tests.
+
+### Start the Server
+#### Install `py-ios`
+```bash
+pip install py-ios
+```
+
+#### Launch XCTest
+```bash
+ios runwda --bundleid `nico.dump-hierarchyUITests.hank2.xctrunner` --testrunnerbundleid `nico.dump-hierarchyUITests.hank2.xctrunner` --xctestconfig=dump_hierarchyUITests.xctest --udid=00008140-001C7CD80202801C --env=USE_PORT=8200
+```
+Replace `nico.dump-hierarchyUITests.hank2.xctrunner` with your actual bundle ID. `USE_PORT` is optional (default: 8200).
+
+#### Start Tunnel (iOS 17+)
+```bash
+ios tunnel start
+```
+
+#### Port Forwarding
+```bash
+ios forward local_port remote_port
+```
+
+## Features
+1. **Network Communication**: Uses GCDAsyncSocket to listen on specified ports, handling HTTP requests and returning results.
+2. **App Management**: Supports activating/terminating iOS apps.
+3. **Element Operations**: Find elements via XPath, index, predicate, etc., with click and text input capabilities.
+4. **Screen Operations**: Screenshots (PNG/JPG) and screen recording.
+5. **Device Information**: Retrieve screen dimensions, audio volume, etc.
+6. **Error Handling**: Returns HTTP error codes for invalid requests or exceptions.
+
+## Usage
+
+### Client Request Examples
+Assume the server runs at `http://localhost:8200`.
+
+#### 1. Check Server Status
+```plaintext
+Request:
+GET http://localhost:8200/check_status
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 13
+
+server running
+```
+
+#### 2. Get App UI Hierarchy
+```plaintext
+Request:
+GET http://localhost:8200/dump_tree?bundle_id=com.example.app
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: ...
+
+<Detailed UI hierarchy information>
+```
+
+#### 3. Activate App
+```plaintext
+Request:
+GET http://localhost:8200/activate_app?bundle_id=com.example.app
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 12
+
+App activated
+```
+
+#### 4. Terminate App
+```plaintext
+Request:
+GET http://localhost:8200/terminate_app?bundle_id=com.example.app
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 13
+
+App terminated
+```
+
+#### 5. Start Screen Recording
+```plaintext
+Request:
+GET http://localhost:8200/start_recording
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 16
+
+Recording started
+```
+
+#### 6. Stop Screen Recording
+```plaintext
+Request:
+GET http://localhost:8200/stop_recording
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 16
+
+Recording stopped
+```
+
+#### 7. Get Screen Dimensions
+```plaintext
+Request:
+GET http://localhost:8200/get_actual_wh
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: ...
+
+<width>,<height>
+```
+
+#### 8. Get PNG Screenshot
+```plaintext
+Request:
+GET http://localhost:8200/get_png_pic
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: image/png
+Content-Length: ...
+
+<PNG binary data>
+```
+
+#### 9. Get JPG Screenshot
+```plaintext
+Request:
+GET http://localhost:8200/get_jpg_pic?compression_quality=0.8
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: image/jpeg
+Content-Length: ...
+
+<JPG binary data>
+```
+
+#### 10. Find Elements by Query
+##### `find_elements_by_query`
+Finds all elements matching the query:
+```plaintext
+Request:
+GET http://localhost:8200/find_elements_by_query?bundle_id=com.example.app&query_method=predicate&query_value=label == 'Button'
+
+Parameters:
+- bundle_id: Target app's Bundle ID
+- query_method: 'predicate' only
+- query_value: Predicate string (e.g., 'label == 'Button'')
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: ...
+
+<element1_json>,<element2_json>,...
+```
+
+##### `find_element_by_query`
+Finds the first matching element:
+```plaintext
+Request:
+GET http://localhost:8200/find_element_by_query?bundle_id=com.example.app&query_method=predicate&query_value=label == 'Button'
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: ...
+
+<element_json>
+```
+
+#### 11. Get Foreground App Bundle ID
+```plaintext
+Request:
+GET http://localhost:8200/get_current_bundleIdentifier?bundle_ids=com.example.app1,com.example.app2
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: ...
+
+<Foreground app Bundle ID>
+```
+
+#### 12. Coordinate-Based Actions
+```plaintext
+Request:
+GET http://localhost:8200/coordinate_action?bundle_id=com.example.app&action=click&xPixel=100&yPixel=200&action_parms=
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 22
+
+Coordinate action performed
+```
+
+#### 13. Device Actions
+```plaintext
+Request:
+GET http://localhost:8200/device_action?action=home
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 20
+
+Device action performed
+```
+
+#### 14. Get Device Info
+```plaintext
+Request:
+GET http://localhost:8200/device_info?value=get_output_volume
+
+Response:
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: ...
+
+<Audio output volume info>
+```
+
+## Notes
+1. **Permissions**: Ensure proper permissions for actions like screenshots.
+2. **Error Handling**: Server returns HTTP error codes for invalid requests.
+3. **Resource Management**: Manage resources to avoid memory leaks during long-running tasks.
+
+## Contribution & Feedback
+Submit issues or pull requests on the [GitHub repository](https://github.com/letmeNo1/IOSHierarchyDumper). Contributions are welcome!
+
+## License
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). You may use, modify, and distribute it freely.
