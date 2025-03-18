@@ -1,7 +1,7 @@
-[English Documentation](##Table of Contents) | [中文文档](##目录)
+[English Documentation](#english-version) | [中文文档](#chinese-version)
 
 
-
+<a name="chinese-version"></a>
 # IOSHierarchyDumper
 
 本项目是一个基于 XCTest 和 GCDAsyncSocket 的 iOS 自动化测试服务器，它允许客户端通过 HTTP 请求与 iOS 设备进行交互，执行各种自动化测试任务，如应用激活、终止、元素查找、屏幕截图、录制等。
@@ -322,7 +322,7 @@ Content-Length: ...
 ## 许可证
 本项目遵循 [MIT 许可证](https://opensource.org/licenses/MIT)，你可以自由使用、修改和分发本项目。
 
-
+<a name="english-version"></a>
 # IOSHierarchyDumper
 
 This project is an iOS automated testing server based on XCTest and GCDAsyncSocket, allowing clients to interact with iOS devices via HTTP requests for various automated testing tasks such as app activation, termination, element lookup, screenshots, screen recording, etc.
