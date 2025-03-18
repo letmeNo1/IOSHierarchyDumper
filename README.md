@@ -212,12 +212,11 @@ Content-Length: ...
 
 ```plaintext
 请求：
-GET http://localhost:8200/find_element_by_query?bundle_id=com.example.app&query_method=predicate&query_value=label == 'Button'
+GET http://localhost:8200/find_element_by_query?bundle_id=com.example.app&predicate=label == 'Button'
 
 参数说明：
 - bundle_id: 当前运行应用的 Bundle Identifier，例如 'com.example.app'(不要填错，否则会进入死循环)。
-- query_method: 查询方法 仅支持 'predicate'
-- query_value:  'label == 'Button'' 表示查找标签为 'Button' 的元素。
+- predicate:  'label == 'Button'' 表示查找标签为 'Button' 的元素。
 
 响应：
 HTTP/1.1 200 OK
@@ -522,12 +521,10 @@ Content-Length: ...
 Finds all elements matching the query:
 ```plaintext
 Request:
-GET http://localhost:8200/find_elements_by_query?bundle_id=com.example.app&query_method=predicate&query_value=label == 'Button'
-
+GET http://localhost:8200/find_element_by_query?bundle_id=com.example.app&predicate=label == 'Button'
 Parameters:
 - bundle_id: Target app's Bundle ID
-- query_method: 'predicate' only
-- query_value: Predicate string (e.g., 'label == 'Button'')
+- predicate: Predicate string (e.g., 'label == 'Button'')
 
 Response:
 HTTP/1.1 200 OK
