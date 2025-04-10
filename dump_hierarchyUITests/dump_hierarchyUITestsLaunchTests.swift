@@ -31,11 +31,9 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     override func setUp() {
         super.setUp()
         continueAfterFailure = false
-        // 创建一个新的线程来运行服务器
         listenThread = Thread(target: self, selector: #selector(startServer), object: nil)
         listenThread.start()
         print("Listening on port ")
-        // 等待一段时间，确保服务器已经启动
         Thread.sleep(forTimeInterval: 1.0)
     }
 
@@ -44,8 +42,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             expectation.fulfill()
         }
         super.tearDown()
-
-        // 停止服务器
         listenSocket.disconnect()
         listenSocket = nil
         listenThread.cancel()
@@ -55,9 +51,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         for i in 0..<100 {
             let expectation = XCTestExpectation(description: "Receive response from server \(i)")
             expectations.append(expectation)
-            // 在这里发送你的请求，并在接收到响应后满足期望
         }
-
         wait(for: expectations, timeout: 99990.0)
     }
 
@@ -69,7 +63,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 customValueInt = UInt16(customValueString) ?? 8200
                 print("The value of USE_PORT is: \(customValueString)")
             } else {
-                // 环境变量未设置
                 print("USE_PORT is not set.")
             }
             try listenSocket.accept(onPort: customValueInt)
@@ -98,13 +91,13 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         let lines = request.components(separatedBy: "\r\n")
         let firstLine = lines.first?.components(separatedBy: " ")
         guard let method = firstLine?[0], let path = firstLine?[1] else {
-                let statusCode = 400
-                let headers = ["Content-Type": "text/plain"]
-                let errorMessage = "HTTP/1.1 400 Bad Request\r\n\r\n"
-                let body = errorMessage.data(using: .utf8) ?? Data()
-                sendHTTPResponse((statusCode, headers, body), socket: socket)
-                return
-            }
+            let statusCode = 400
+            let headers = ["Content-Type": "text/plain"]
+            let errorMessage = "HTTP/1.1 400 Bad Request\r\n\r\n"
+            let body = errorMessage.data(using: .utf8) ?? Data()
+            sendHTTPResponse((statusCode, headers, body), socket: socket)
+            return
+        }
 
         if method == "GET" {
             let components = path.components(separatedBy: "?")
@@ -131,19 +124,20 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             } else if command.contains("get_actual_wh") {
                 responseBody = handleGetActualWH()
             } else if command.contains("get_png_pic") {
-                // 这里需要处理二进制数据的返回，暂时简单返回文本
                 responseBody = "PNG picture data"
             } else if command.contains("find_elements_by_query") {
                 responseBody = handleFindElementsByQuery(params)
             } else if command.contains("get_current_bundleIdentifier") {
                 responseBody = handleGetCurrentBundleIdentifier(params)
             } else if command.contains("get_jpg_pic") {
-                // 这里需要处理二进制数据的返回，暂时简单返回文本
                 let response = handleGetJPGPic(params)
                 sendHTTPResponse(response, socket: socket)
-
+                return
             } else if command.contains("find_element_by_query") {
                 responseBody = handleFindElementByQuery(params)
+            } else if command.contains("element_action") {
+                handleElementAction(params)
+                responseBody = "Element action performed"
             } else if command.contains("coordinate_action") {
                 handleCoordinateAction(params)
                 responseBody = "Coordinate action performed"
@@ -152,7 +146,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 responseBody = "Device action performed"
             } else if command.contains("device_info") {
                 responseBody = handleDeviceInfo(params)
-            }else if command.contains("check_status") {
+            } else if command.contains("check_status") {
                 responseBody = handleCheckStatus()
             } else {
                 let errorMessage = "HTTP/1.1 404 Not Found\r\n\r\n".data(using: .utf8) ?? Data()
@@ -167,7 +161,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             sendHTTPResponse((405, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
         }
     }
-
 
     private func sendHTTPResponse(_ response: (statusCode: Int, headers: [String: String], body: Data), socket: GCDAsyncSocket) {
         var responseString = "HTTP/1.1 \(response.statusCode) "
@@ -192,14 +185,12 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         }
     }
 
-
     private func parseQueryParams(_ paramString: String) -> [String: String] {
         var params = [String: String]()
         let pairs = paramString.components(separatedBy: "&")
         for pair in pairs {
             let keyValue = pair.components(separatedBy: "=")
             if keyValue.count == 2 {
-                // 先把 + 号替换为空格
                 let decodedKey = keyValue[0].replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? ""
                 let decodedValue = keyValue[1].replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? ""
                 params[decodedKey] = decodedValue
@@ -208,24 +199,20 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         return params
     }
 
-
     private func handleDumpTree(_ params: [String: String]) -> String {
         guard let bundle_id = params["bundle_id"] else { return "Missing bundle_id parameter" }
-        print("\(bundle_id) is the bundle id")
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         return app.debugDescription
     }
 
     private func handleActivateApp(_ params: [String: String]) {
         guard let bundle_id = params["c"] else { return }
-        print("\(bundle_id) is the bundle id")
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         app.activate()
     }
 
     private func handleTerminateApp(_ params: [String: String]) {
         guard let bundle_id = params["bundle_id"] else { return }
-        print("\(bundle_id) is the bundle id")
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         app.terminate()
     }
@@ -234,7 +221,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         isRecording = true
         images = []
         var screenshotCount = 0
-        let maxScreenshots = 100 // 设置最大截图数量
+        let maxScreenshots = 100
 
         DispatchQueue.global(qos: .background).async { [weak self] in
             guard let self = self else { return }
@@ -246,51 +233,35 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 }
                 screenshotCount += 1
                 usleep(100_000)
-                // 等待1秒钟后再进行下一次截图
             }
         }
     }
 
     private func handleStopRecording() -> String {
         isRecording = false
-        // 这里简单返回文本，实际需要处理图像数据
         return "Recording stopped"
     }
 
     private func handleGetActualWH() -> String {
-        // 获取 SpringBoard 应用程序
         let app = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-
-        // 获取窗口框架
         let windowFrame = app.windows.element(boundBy: 0).frame
-
-        // 获取窗口宽度和高度
         let windowWidth = windowFrame.width
         let windowHeight = windowFrame.height
-
-        // 将宽度和高度格式化为字符串
         return "\(windowWidth),\(windowHeight)"
     }
 
     private func handleFindElementsByQuery(_ params: [String: String]) -> String {
-        guard let bundle_id = params["bundle_id"], let query_method = params["query_method"], let query_value = params["query_value"] else { return "Missing parameters" }
+        guard let bundle_id = params["bundle_id"], let predicateExpression = params["predicate"] else {
+            return "Missing parameters (bundle_id or predicate)"
+        }
+
         var element_info_list: [String] = []
         let app = XCUIApplication(bundleIdentifier: bundle_id)
-        var predicate: NSPredicate?
-        
-        switch query_method {
-        case "label":
-            predicate = NSPredicate(format: "label == %@", query_value)
-        case "identifier":
-            predicate = NSPredicate(format: "identifier == %@", query_value)
-        case "value":
-            predicate = NSPredicate(format: "value == %@", query_value)
-        default:
-            return "Unsupported query method"
-        }
-        
-        if let predicate = predicate {
+
+        do {
+            let predicate = NSPredicate(format: predicateExpression)
             let elements = app.descendants(matching: .any).matching(predicate)
+
             for i in 0..<elements.count {
                 let element = elements.element(boundBy: i)
                 do {
@@ -301,7 +272,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 }
             }
         }
-        
+
         return element_info_list.joined(separator: ",")
     }
 
@@ -355,7 +326,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         return (400, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage)
     }
 
-
     private func handleFindElementByQuery(_ params: [String: String]) -> String {
         guard let bundle_id = params["bundle_id"]?.removingPercentEncoding,
               let query_method = params["query_method"]?.removingPercentEncoding,
@@ -377,7 +347,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         }
         return responseData
     }
-
 
     private func handleElementAction(_ params: [String: String]) {
         guard let bundle_id = params["bundle_id"], let action = params["action"], let action_parms = params["action_parms"], let query_method = params["query_method"], let query_value = params["query_value"] else { return }
@@ -405,11 +374,10 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
               let action_parms = params["action_parms"] else {
             return
         }
-        
+
         print("\(bundle_id) is the bundle id")
         let app = XCUIApplication(bundleIdentifier: bundle_id)
-        
-        // 分步处理：先确保字符串转 Float 成功，再转 CGFloat（Float 转 CGFloat 是确定操作，无需额外可选绑定）
+
         if let xFloat = Float(xPixelString),
            let yFloat = Float(yPixelString) {
             let xPixel = CGFloat(xFloat)
@@ -430,8 +398,8 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         let DeviceInfo = DeviceInfo()
         return DeviceInfo.get_info(value: value)
     }
-    
+
     private func handleCheckStatus() -> String {
-            return "server running"
-        }
+        return "server running"
+    }
 }
