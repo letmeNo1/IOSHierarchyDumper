@@ -120,7 +120,9 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 handleStartRecording()
                 responseBody = "Recording started"
             } else if command.contains("stop_recording") {
-                responseBody = handleStopRecording()
+                let responseData = handleStopRecording()
+                socket.write(responseData, withTimeout: -1, tag: 0)
+                return
             } else if command.contains("get_actual_wh") {
                 responseBody = handleGetActualWH()
             } else if command.contains("get_png_pic") {
@@ -216,30 +218,86 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         app.terminate()
     }
+    
 
-    private func handleStartRecording() {
-        isRecording = true
-        images = []
-        var screenshotCount = 0
-        let maxScreenshots = 100
 
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let self = self else { return }
-            while self.isRecording && screenshotCount < maxScreenshots {
-                DispatchQueue.main.async {
-                    let screenshot = XCUIScreen.main.screenshot()
-                    let image = screenshot.image
-                    self.images.append(image)
-                }
-                screenshotCount += 1
-                usleep(100_000)
+    func handleStartRecordingRequest() -> Data {
+        // 检查是否已有录制正在进行
+        if isRecording {
+            let statusCode = 400
+            let headers = ["Content-Type": "text/plain"]
+            // 将 let 改为 var，使 errorMessage 成为可变变量
+            var errorMessage = "HTTP/1.1 \(statusCode) Bad Request\r\n"
+            for (key, value) in headers {
+                errorMessage += "\(key): \(value)\r\n"
             }
+            errorMessage += "\r\nRecording is already in progress"
+            return errorMessage.data(using: .utf8)!
         }
+        
+        // 调用实际的录制启动方法
+        handleStartRecording()
+        
+        // 返回成功响应
+        let statusCode = 200
+        let headers = ["Content-Type": "text/plain"]
+        // 将 let 改为 var，使 successMessage 成为可变变量
+        var successMessage = "HTTP/1.1 \(statusCode) OK\r\n"
+        for (key, value) in headers {
+            successMessage += "\(key): \(value)\r\n"
+        }
+        successMessage += "\r\nRecording started successfully"
+        return successMessage.data(using: .utf8)!
     }
+    
+    private func handleStartRecording() {
+       isRecording = true
+       images = []
+       var screenshotCount = 0
+       let maxScreenshots = 100
 
-    private func handleStopRecording() -> String {
+       DispatchQueue.global(qos: .background).async { [weak self] in
+           guard let self = self else { return }
+           while self.isRecording && screenshotCount < maxScreenshots {
+               DispatchQueue.main.async {
+                   let screenshot = XCUIScreen.main.screenshot()
+                   let image = screenshot.image
+                   self.images.append(image)
+               }
+               screenshotCount += 1
+               usleep(100_000)
+           }
+       }
+   }
+
+    private func handleStopRecording() -> Data {
+        guard isRecording else {
+            let statusCode = 400
+            let headers = ["Content-Type": "text/plain"]
+            var errorMessage = "HTTP/1.1 \(statusCode) Bad Request\r\n"
+            for (key, value) in headers {
+                errorMessage += "\(key): \(value)\r\n"
+            }
+            errorMessage += "\r\nNo recording in progress"
+            return errorMessage.data(using: .utf8)!
+        }
+        
         isRecording = false
-        return "Recording stopped"
+        let imageDatas = images.compactMap { $0.jpegData(compressionQuality: 0.0) }
+        
+        // 构建 JSON 响应（Base64 编码的图片数组）
+        let jsonData = try? JSONSerialization.data(withJSONObject: imageDatas.map { $0.base64EncodedString() })
+        
+        let statusCode = 200
+        let headers = ["Content-Type": "application/json"]
+        var responseString = "HTTP/1.1 \(statusCode) OK\r\n"
+        for (key, value) in headers {
+            responseString += "\(key): \(value)\r\n"
+        }
+        responseString += "\r\n"
+        
+        let finalData = responseString.data(using: .utf8)! + (jsonData ?? Data())
+        return finalData
     }
 
     private func handleGetActualWH() -> String {
