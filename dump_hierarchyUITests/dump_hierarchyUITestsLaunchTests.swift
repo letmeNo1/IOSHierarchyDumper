@@ -367,21 +367,23 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
 
     private func handleGetJPGPic(_ params: [String: String]) -> (statusCode: Int, headers: [String: String], body: Data) {
         guard let compressionQualityString = params["compression_quality"] else {
-            let errorMessage = "error format".data(using: .utf8) ?? Data()
-            return (400, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage)
+            return (400, ["Content-Type": "text/plain"], Data("error format".utf8))
         }
-
-        let screenshot = XCUIScreen.main.screenshot()
-        let image = screenshot.image
-        if let doubleValue = Double(compressionQualityString) {
-            let compressionQuality = CGFloat(doubleValue)
-            if let jpegData = image.jpegData(compressionQuality: compressionQuality) {
-                return (200, ["Content-Type": "image/jpeg", "Content-Length": "\(jpegData.count)"], jpegData)
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        var result = (400, ["Content-Type": "text/plain"], Data())
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let screenshot = XCUIScreen.main.screenshot()
+            if let quality = Double(compressionQualityString),
+               let jpegData = screenshot.image.jpegData(compressionQuality: CGFloat(quality)) {
+                result = (200, ["Content-Type": "image/jpeg"], jpegData)
             }
+            semaphore.signal()
         }
-
-        let errorMessage = "error format".data(using: .utf8) ?? Data()
-        return (400, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage)
+        
+        _ = semaphore.wait(timeout: .now() + 5.0) // 5秒超时
+        return result
     }
 
     private func handleFindElementByQuery(_ params: [String: String]) -> String {
