@@ -449,25 +449,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             print("❌ 无法获取属性列表")
         }
     }
-    
-    private func handleElementTap(_ params: [String: String]) -> String {
-        // 校验必填参数：bundle_id（包名）和 action（操作，此处固定为 tap）
-        guard let bundleId = params["bundle_id"],
-              let action = params["action"],
-              action == "tap" else { // 限制仅支持 tap 动作
-            return "Error: Missing parameters or invalid action (expected 'tap')"
-        }
-
-        // 尝试从缓存中获取最新元素（基于之前的缓存逻辑）
-        if let cachedElement = cachedElement, cachedElement.exists {
-            // 点击缓存元素
-            cachedElement.tap()
-            return "Tapped cached element successfully"
-        }
-
-        // 缓存中无元素，返回错误（如需动态查找可在此处添加查找逻辑）
-        return "Error: No cached element found for tap action"
-    }
 
     private func parseQueryParams(_ paramString: String) -> [String: String] {
         var params = [String: String]()
