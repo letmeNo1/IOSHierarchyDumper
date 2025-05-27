@@ -20,7 +20,6 @@ extension XCUIElement {
 }
 
 class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
-    var cachedElement: XCUIElement? // 新增：全局缓存变量，永远存储最后一个元素
     var listenThread: Thread!
     var listenSocket: GCDAsyncSocket!
     var connectedSockets = [GCDAsyncSocket]()
@@ -38,8 +37,6 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         listenThread.start()
         let savedIP = UserDefaults.standard.string(forKey: "ServerIP") ?? "0.0.0.0"
         print(savedIP)
-        let
-        cond = XCUIApplication().coordinate(withNormalizedOffset: .zero)
 
         print("Listening on port ")
         Thread.sleep(forTimeInterval: 1.0)
@@ -95,7 +92,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         sock.disconnectAfterWriting()
     }
 
-    private func handleHTTPRequest(_ request: String, socket: GCDAsyncSocket) {
+    private func handleHTTPRequest(_ request: String, socket: GCDAsyncSocket){
         let lines = request.components(separatedBy: "\r\n")
         let firstLine = lines.first?.components(separatedBy: " ")
         guard let method = firstLine?[0], let path = firstLine?[1] else {
@@ -138,37 +135,53 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             } else if command.contains("find_elements_by_query") {
                 responseBody = handleFindElementsByQuery(params)
             } else if command.contains("get_current_bundleIdentifier") {
-                responseBody = handleGetCurrentBundleIdentifier()[0]
+                responseBody = handleGetCurrentBundleIdentifier(params)
             } else if command.contains("get_jpg_pic") {
                 let response = handleGetJPGPic(params)
                 sendHTTPResponse(response, socket: socket)
                 return
             } else if command.contains("find_element_by_query") {
                 responseBody = handleFindElementByQuery(params)
-            } else if command.contains("element_action") {
-                handleElementAction(params)
-                responseBody = "Element action performed"
             } else if command.contains("coordinate_action") {
                 handleCoordinateAction(params)
                 responseBody = "Coordinate action performed"
             } else if command.contains("device_action") {
                 handleDeviceAction(params)
                 responseBody = "Device action performed"
-            } else if command.contains("device_info") {
+            }else if command.contains("event") {
+                handleEventAction(params)
+                responseBody = "Event action performed"
+            }
+            else if command.contains("device_info") {
                 responseBody = handleDeviceInfo(params)
             } else if command.contains("check_status") {
                 responseBody = handleCheckStatus()
             
-            }else if command.contains("element_tap") {
-                responseBody = handleElementTap(params)
-            }else if command.contains("press"){
-                if let xString = params["xPixel"],
-                   let yString = params["yPixel"],
-                   let xDouble = Double(xString),
-                   let yDouble = Double(yString) {
-                    handleApress(condi: condi ,x: xDouble, y: yDouble)
+            }
+            else if command.contains("move_to") {
+                // 从参数中解析坐标值
+                guard let startXStr = params["startX"],
+                      let startYStr = params["startY"],
+                      let endXStr = params["endX"],
+                      let endYStr = params["endY"],
+                      let startX = Double(startXStr),
+                      let startY = Double(startYStr),
+                      let endX = Double(endXStr),
+                      let endY = Double(endYStr) else {
+                    print("移动命令参数错误：缺少必要的坐标值")
+                    return // 直接返回，不返回任何值
                 }
                 
+                // 解析持续时间，没有提供时使用默认值0.5秒
+                let duration = Double(params["duration"] ?? "0.5") ?? 0.5
+                
+                // 应用屏幕缩放
+                let startPoint = CGPoint(x: startX , y: startY )
+                let endPoint = CGPoint(x: endX , y: endY )
+                
+                // 执行移动操作
+                move(at: startPoint, moveTo: endPoint, duration: duration)
+                print("移动命令已发送")
             }
             else if command.contains("tap"){
                 if let xString = params["xPixel"],
@@ -250,7 +263,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         let y = point.y
         let initialOffset = point.x
         let pressOffset = 0.3
-        let liftOffset = 2.4
+        let liftOffset = 3.4
         
         // 1. alloc eventPath
         guard let eventPathAlloc = eventPathClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
@@ -270,29 +283,29 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             return false
         }
         
-        // 3. pressDownAtOffset:
-//        if eventPath.responds(to: NSSelectorFromString("pressDownAtOffset:")) {
-//            let sel = NSSelectorFromString("pressDownAtOffset:")
-//            let imp2 = eventPath.method(for: sel)
-//            typealias PressFunc = @convention(c) (NSObject, Selector, Double) -> Void
-//            let func2 = unsafeBitCast(imp2, to: PressFunc.self)
-//            func2(eventPath, sel, pressOffset)
-//        } else {
-//            print("不支持 pressDownAtOffset:")
-//            return false
-//        }
-        
-        // 4. liftUpAtOffset:
-        if eventPath.responds(to: NSSelectorFromString("liftUpAtOffset:")) {
-            let sel = NSSelectorFromString("liftUpAtOffset:")
+//        //3. pressDownAtOffset:
+        if eventPath.responds(to: NSSelectorFromString("pressDownAtOffset:")) {
+            let sel = NSSelectorFromString("pressDownAtOffset:")
             let imp2 = eventPath.method(for: sel)
-            typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
-            let func2 = unsafeBitCast(imp2, to: LiftFunc.self)
-            func2(eventPath, sel, liftOffset)
+            typealias PressFunc = @convention(c) (NSObject, Selector, Double) -> Void
+            let func2 = unsafeBitCast(imp2, to: PressFunc.self)
+            func2(eventPath, sel, pressOffset)
         } else {
-            print("不支持 liftUpAtOffset:")
+            print("不支持 pressDownAtOffset:")
             return false
         }
+        
+        // 4. liftUpAtOffset:
+//        if eventPath.responds(to: NSSelectorFromString("liftUpAtOffset:")) {
+//            let sel = NSSelectorFromString("liftUpAtOffset:")
+//            let imp2 = eventPath.method(for: sel)
+//            typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
+//            let func2 = unsafeBitCast(imp2, to: LiftFunc.self)
+//            func2(eventPath, sel, liftOffset)
+//        } else {
+//            print("不支持 liftUpAtOffset:")
+//            return false
+//        }
         
         // 5. 创建事件记录
         guard let eventRecordAlloc = eventRecordClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
@@ -323,6 +336,8 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 let imp = eventRecord.method(for: synthSel)!
                 let synthFunc = unsafeBitCast(imp, to: SynthFunc.self)
                 let success = synthFunc(eventRecord, synthSel, &error)
+                print("输出结果")
+                print(success)
                 if success {
                     print("触摸事件成功发送")
                     return true
@@ -336,96 +351,105 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             }
     }
     
-
-
-
-    
-    func synthesizeTap(at point: CGPoint) {
-        printPrivateClassProperties(className: "XCPointerEvent")
-
-        // 1. 动态获取类
-        guard let eventRecordClass = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type,
-              let pointerEventPathClass = NSClassFromString("XCPointerEventPath") as? NSObject.Type,
-              let pointerEventClass = NSClassFromString("XCPointerEvent") as? NSObject.Type else {
-            print("无法加载XCTest私有类")
-            return
+    func move(at startPoint: CGPoint, moveTo endPoint: CGPoint, duration: Double) -> Bool {
+        guard let eventPathClass = NSClassFromString("XCPointerEventPath") as? NSObject.Type,
+              let eventRecordClass = NSClassFromString("XCSynthesizedEventRecord") as? NSObject.Type else {
+            print("无法找到相关类")
+            return false
         }
         
-
-        // 调试输出：确认坐标
-        print("尝试点击坐标: \(point)")
-        print("屏幕尺寸: \(UIScreen.main.bounds.size)")
-        let scale = UIScreen.main.scale
-        print(scale)
-        let validPoint = CGPoint(
-            x: point.x,
-            y: point.y
-        )
-
-
+        // 创建按下事件路径
+        let startPointValue = NSValue(cgPoint: startPoint)
         
-        // 2. 创建事件路径
-        let eventPath = pointerEventPathClass.init()
+        // 1. alloc eventPath
+        guard let eventPathAlloc = eventPathClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
+            print("eventPath alloc失败")
+            return false
+        }
+        let x = startPoint.x
+        let y = startPoint.y
         
-        // 3. 创建完整的触摸周期（按下+抬起）
-        let pointerEvents = NSMutableArray()
+        // 2. 初始化按下点
+        typealias InitFunc = @convention(c) (NSObject, Selector, NSValue, Double,Double) -> NSObject?
+        let initSelector = NSSelectorFromString("initForTouchAtPoint:offset:")
+        let initImp = eventPathAlloc.method(for: initSelector)
+        let initFunction = unsafeBitCast(initImp, to: InitFunc.self)
         
-        // 按下事件
-//        let beginEvent = pointerEventClass.init()
-//        beginEvent.setValue(validPoint, forKeyPath: "coordinate")
-//        beginEvent.setValue(0.0, forKeyPath: "offset")           // 起始时间为 0.0
-//        beginEvent.setValue(1, forKeyPath: "gesturePhase")       // 1 = began
-//        beginEvent.setValue(1, forKeyPath: "eventType")          // 1 = touch
-//        beginEvent.setValue(1, forKeyPath: "clickCount")         // 单击
-//        beginEvent.setValue(1, forKeyPath: "gestureStage")
-//// 单击
-//        pointerEvents.add(beginEvent)
+        guard let eventPath = initFunction(eventPathAlloc, initSelector, startPointValue, x,y) else {
+            print("eventPath init失败")
+            return false
+        }
         
-//        // 抬起事件（延迟50ms模拟真实触摸）
-        let endEvent = pointerEventClass.init()
-        endEvent.setValue(validPoint, forKeyPath: "coordinate")
-        endEvent.setValue(0.0, forKeyPath: "offset")           // 0.05秒后抬起
-        endEvent.setValue(2, forKeyPath: "gesturePhase")        // 2 = ended
-        endEvent.setValue(1, forKeyPath: "eventType")           // 1 = touch
-       
-//// 单击
-//
-//        // ⚠️ 不再设置 clickCount
-        pointerEvents.add(endEvent)
-//
-        let endEvent2 = pointerEventClass.init()
-        endEvent2.setValue(validPoint, forKeyPath: "coordinate")
-        endEvent2.setValue(3, forKeyPath: "offset")           // 0.05秒后抬起
-        endEvent2.setValue(2, forKeyPath: "gesturePhase")        // 2 = ended
-        endEvent2.setValue(3, forKeyPath: "eventType")           // 1 = touch
-     
-////// 单击
-//
-//        // ⚠️ 不再设置 clickCount
-        pointerEvents.add(endEvent2)
-        
-        // 设置事件路径
-        eventPath.setValue(pointerEvents, forKey: "pointerEvents")
-        
-        // 4. 初始化事件记录
-        let eventRecord = eventRecordClass.init()
-        eventRecord.setValue([eventPath], forKey: "eventPaths")
-        
-        // 5. 触发事件
-        let selector = NSSelectorFromString("synthesizeWithError:")
-        if eventRecord.responds(to: selector) {
-            var error: NSError?
-            eventRecord.perform(selector, with: nil)
+        // 3. 添加移动到操作
+        if eventPath.responds(to: NSSelectorFromString("moveToPoint:atOffset:")) {
+            let moveSelector = NSSelectorFromString("moveToPoint:atOffset:")
+            let moveImp = eventPath.method(for: moveSelector)
+            typealias MoveFunc = @convention(c) (NSObject, Selector, NSValue, Double) -> Void
+            let moveFunction = unsafeBitCast(moveImp, to: MoveFunc.self)
             
-            if let error = error {
-                print("合成事件失败: \(error.localizedDescription)")
+            let endPointValue = NSValue(cgPoint: endPoint)
+            let moveOffset = duration * 0.75 // 在75%的时间点移动
+            moveFunction(eventPath, moveSelector, endPointValue, moveOffset)
+        } else {
+            print("不支持 moveToPoint:atOffset:")
+            return false
+        }
+        
+        // 4. 设置抬起时间
+        if eventPath.responds(to: NSSelectorFromString("liftUpAtOffset:")) {
+            let liftSelector = NSSelectorFromString("liftUpAtOffset:")
+            let liftImp = eventPath.method(for: liftSelector)
+            typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
+            let liftFunction = unsafeBitCast(liftImp, to: LiftFunc.self)
+            liftFunction(eventPath, liftSelector, duration)
+        } else {
+            print("不支持 liftUpAtOffset:")
+            return false
+        }
+        
+        // 5. 创建事件记录
+        guard let eventRecordAlloc = eventRecordClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
+            print("eventRecord alloc失败")
+            return false
+        }
+        
+        // 6. 初始化事件记录
+        let recordInitSelector = NSSelectorFromString("initWithName:interfaceOrientation:")
+        guard let eventRecord = eventRecordAlloc.perform(recordInitSelector, with: "Drag Event", with: NSNumber(value: 1))?.takeUnretainedValue() as? NSObject else {
+            print("eventRecord init失败")
+            return false
+        }
+        
+        // 7. 添加事件路径
+        if eventRecord.responds(to: NSSelectorFromString("addPointerEventPath:")) {
+            eventRecord.perform(NSSelectorFromString("addPointerEventPath:"), with: eventPath)
+        } else {
+            print("不支持 addPointerEventPath:")
+            return false
+        }
+        
+        // 8. 合成并发送事件
+        let synthSelector = NSSelectorFromString("synthesizeWithError:")
+        if eventRecord.responds(to: synthSelector) {
+            var error: NSError? = nil
+            typealias SynthFunc = @convention(c) (AnyObject, Selector, UnsafeMutablePointer<NSError?>?) -> Bool
+            let synthImp = eventRecord.method(for: synthSelector)!
+            let synthFunction = unsafeBitCast(synthImp, to: SynthFunc.self)
+            let success = synthFunction(eventRecord, synthSelector, &error)
+            
+            if success {
+                print("拖动事件成功发送")
+                return true
             } else {
-                print("✅ 事件合成成功")
+                print("拖动事件发送失败: \(error?.localizedDescription ?? "未知错误")")
+                return false
             }
         } else {
-            print("synthesizeWithError: 方法不存在")
+            print("不支持 synthesizeWithError:")
+            return false
         }
     }
+    
     func printPrivateClassProperties(className: String) {
         // 1. 获取类对象
         guard let cls = NSClassFromString(className) as? NSObject.Type else {
@@ -597,50 +621,36 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         return element_info_list.joined(separator: ",")
     }
 
-    private func handleGetCurrentBundleIdentifier() -> [String] {
-        guard let workspace = NSClassFromString("LSApplicationWorkspace") as? NSObject,
-                  let workspaceInstance = workspace.perform(Selector(("defaultWorkspace")))?.takeUnretainedValue() as? NSObject,
-                  let apps = workspaceInstance.perform(Selector(("allInstalledApplications")))?.takeUnretainedValue() as? [AnyObject] else {
-                return []
+    private func handleGetCurrentBundleIdentifier(_ params: [String: String]) -> String {
+        let ios_system_bundle_identifiers = [
+            "com.apple.Preferences",
+            "com.apple.mobilephone",
+            "com.apple.MobileSMS",
+            "com.apple.camera",
+            "com.apple.mobileslideshow",
+            "com.apple.mobilemail",
+            "com.apple.mobilesafari",
+            "com.apple.mobilecal",
+            "com.apple.reminders",
+            "com.apple.mobilenotes",
+            "com.apple.Music",
+            "com.apple.Maps",
+            "com.apple.InCallService",
+            "com.apple.springboard"
+        ]
+        var response = "No frontmost app found"
+        if let bundle_idsString = params["bundle_ids"] {
+            let bundle_ids = bundle_idsString.components(separatedBy: ",") + ios_system_bundle_identifiers
+            for bundleId in bundle_ids {
+                let app = XCUIApplication(bundleIdentifier: bundleId)
+                if app.state == .runningForeground {
+                    response = bundleId
+                    break
+                }
             }
-            
-            return apps.compactMap { app in
-                app.perform(Selector(("bundleIdentifier")))?.takeUnretainedValue() as? String
-            }
+        }
+        return response
     }
-
-
-    
-
-//        let ios_system_bundle_identifiers = [
-//            "com.apple.Preferences",
-//            "com.apple.mobilephone",
-//            "com.apple.MobileSMS",
-//            "com.apple.camera",
-//            "com.apple.mobileslideshow",
-//            "com.apple.mobilemail",
-//            "com.apple.mobilesafari",
-//            "com.apple.mobilecal",
-//            "com.apple.reminders",
-//            "com.apple.mobilenotes",
-//            "com.apple.Music",
-//            "com.apple.Maps",
-//            "com.apple.InCallService",
-//            "com.apple.springboard"
-//        ]
-//        var response = "No frontmost app found"
-//        if let bundle_idsString = params["bundle_ids"] {
-//            let bundle_ids = bundle_idsString.components(separatedBy: ",") + ios_system_bundle_identifiers
-//            for bundleId in bundle_ids {
-//                let app = XCUIApplication(bundleIdentifier: bundleId)
-//                if app.state == .runningForeground {
-//                    response = bundleId
-//                    break
-//                }
-//            }
-//        }
-//        return response
-//    }
 
     private func handleGetJPGPic(_ params: [String: String]) -> (statusCode: Int, headers: [String: String], body: Data) {
         guard let compressionQualityString = params["compression_quality"] else {
@@ -664,53 +674,29 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     }
 
     private func handleFindElementByQuery(_ params: [String: String]) -> String {
-        guard let bundle_id = params["bundle_id"]?.removingPercentEncoding,
-              let query_method = params["query_method"]?.removingPercentEncoding,
-              let query_value = params["query_value"]?.removingPercentEncoding else {
-            return "Missing parameters"
-        }
-        print(query_value)
-        let app = XCUIApplication(bundleIdentifier: bundle_id)
-        let FindElement = FindElement(app: app)
-        let element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
-        var responseData = ""
-        if !element.exists {
-            cachedElement = nil
+            guard let bundle_id = params["bundle_id"]?.removingPercentEncoding,
+                  let query_method = params["query_method"]?.removingPercentEncoding,
+                  let query_value = params["query_value"]?.removingPercentEncoding else {
+                return "Missing parameters"
+            }
+            print(query_value)
+            let app = XCUIApplication(bundleIdentifier: bundle_id)
+            let FindElement = FindElement(app: app)
+            let element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
+            var responseData = ""
+            if !element.exists {
+                return responseData
+            }
+            do {
+                responseData = try element.snapshotToString()
+            } catch {
+                print("Error converting element snapshot to string: \(error)")
+            }
             return responseData
         }
-        cachedElement = element
-        print("Element cached: \(element)") // 打印缓存更新日志
 
-        do {
-            responseData = try element.snapshotToString()
-        } catch {
-            print("Error converting element snapshot to string: \(error)")
-        }
-        return responseData
-    }
-
-    private func handleElementAction(_ params: [String: String]) {
-        guard let bundle_id = params["bundle_id"], let action = params["action"], let action_parms = params["action_parms"], let query_method = params["query_method"], let query_value = params["query_value"] else { return }
-        let app = XCUIApplication(bundleIdentifier: bundle_id)
-        var element: XCUIElement
-        let FindElement = FindElement(app: app)
-        let key = "\(bundle_id)|\(action)|\(action_parms)|\(query_method)|\(query_value)"
-        if let current_element = element_dict[key] {
-            print("Found element: \(current_element)")
-            element = current_element
-        } else {
-            element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
-        }
-        let xPixel = element.frame.origin.x + element.frame.size.width / 2
-        let yPixel = element.frame.origin.y + element.frame.size.height / 2
-        let ElementAction = ElementAction(app: app, xPixel: xPixel, yPixel: yPixel, action_parms: action_parms)
-        ElementAction.perform_action(action: action)
-    }
     
-    private func handleApress(condi:XCUICoordinate,x:Double,y:Double){
-        condi.withOffset(CGVector(dx: x, dy: y)).tap()
-    }
-
+   
     private func handleCoordinateAction(_ params: [String: String]) {
         guard let bundle_id = params["bundle_id"],
               let action = params["action"],
@@ -730,6 +716,37 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             let ElementAction = ElementAction(app: app, xPixel: xPixel, yPixel: yPixel, action_parms: action_parms)
             ElementAction.perform_action(action: action)
         }
+    }
+    
+    private func handleEventAction(_ params: [String: String]) {
+        guard let action = params["action"],
+              let xPixelString = params["x"],
+              let yPixelString = params["y"],
+              let xFloat = Float(xPixelString),
+              let yFloat = Float(yPixelString)
+        else {
+            return
+        }
+        
+        let xPixel = CGFloat(xFloat)
+        let yPixel = CGFloat(yFloat)
+        
+        // 处理可选参数并提供默认值
+        let x2Pixel = params["x2"].flatMap { Float($0) }.map { CGFloat($0) } ?? 0
+        let y2Pixel = params["y2"].flatMap { Float($0) }.map { CGFloat($0) } ?? 0
+        let duration = params["duration"].flatMap { Double($0) } ?? 0.0 // 提供默认值
+        
+        let eventAction = TouchActionExecutor(
+            xPixel: xPixel,
+            yPixel: yPixel,
+            x2Pixel: Double(x2Pixel), // 修正参数名
+            y2Pixel: Double(y2Pixel),
+            duration: duration
+        )
+        
+        let rst = eventAction.perform(action: action)
+        print(rst)
+        
     }
 
     private func handleDeviceAction(_ params: [String: String]) {
