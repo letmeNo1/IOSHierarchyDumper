@@ -52,7 +52,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             let expectation = XCTestExpectation(description: "Receive response from server \(i)")
             expectations.append(expectation)
         }
-        wait(for: expectations, timeout: 99990.0)
+        wait(for: expectations, timeout: 999990.0)
     }
 
     @objc func startServer() {
@@ -125,6 +125,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                    return
             } else if command.contains("get_actual_wh") {
                 responseBody = handleGetActualWH()
+            
             } else if command.contains("get_png_pic") {
                 responseBody = "PNG picture data"
             } else if command.contains("find_elements_by_query") {
@@ -137,10 +138,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 return
             } else if command.contains("find_element_by_query") {
                 responseBody = handleFindElementByQuery(params)
-            } else if command.contains("element_action") {
-                handleElementAction(params)
-                responseBody = "Element action performed"
-            } else if command.contains("coordinate_action") {
+            }  else if command.contains("coordinate_action") {
                 handleCoordinateAction(params)
                 responseBody = "Coordinate action performed"
             } else if command.contains("device_action") {
@@ -208,7 +206,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     }
 
     private func handleActivateApp(_ params: [String: String]) {
-        guard let bundle_id = params["c"] else { return }
+        guard let bundle_id = params["bundle_id"] else { return }
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         app.activate()
     }
@@ -218,6 +216,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         app.terminate()
     }
+    
     
     func handleStartRecordingRequest() -> Data {
             // 检查是否已有录制正在进行
@@ -384,43 +383,36 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     }
 
     private func handleFindElementByQuery(_ params: [String: String]) -> String {
+        logger.log(level: .info, "开始调用 handleFindElementByQuery 方法，参数: \(params)")
+        
         guard let bundle_id = params["bundle_id"]?.removingPercentEncoding,
               let query_method = params["query_method"]?.removingPercentEncoding,
               let query_value = params["query_value"]?.removingPercentEncoding else {
+            logger.log(level: .error, "缺少必要参数")
             return "Missing parameters"
         }
-        print(query_value)
+        
+        logger.log(level: .debug, "解析后的参数 - bundle_id: \(bundle_id), query_method: \(query_method), query_value: \(query_value)")
+        
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         let FindElement = FindElement(app: app)
-        let element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
-        var responseData = ""
-        if !element.exists {
-            return responseData
+        
+        // 处理可选返回值
+        guard let element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value) else {
+            logger.log(level: .error, "未找到元素 - query_method: \(query_method), query_value: \(query_value)")
+            return ""
         }
+        
+        logger.log(level: .info, "成功找到元素 - query_method: \(query_method), query_value: \(query_value)")
+        
         do {
-            responseData = try element.snapshotToString()
+            let responseData = try element.snapshotToString()
+            logger.log(level: .debug, "成功转换元素快照为字符串，长度: \(responseData.count)")
+            return responseData
         } catch {
-            print("Error converting element snapshot to string: \(error)")
+            logger.log(level: .error, "转换元素快照为字符串时出错: \(error.localizedDescription)")
+            return ""
         }
-        return responseData
-    }
-
-    private func handleElementAction(_ params: [String: String]) {
-        guard let bundle_id = params["bundle_id"], let action = params["action"], let action_parms = params["action_parms"], let query_method = params["query_method"], let query_value = params["query_value"] else { return }
-        let app = XCUIApplication(bundleIdentifier: bundle_id)
-        var element: XCUIElement
-        let FindElement = FindElement(app: app)
-        let key = "\(bundle_id)|\(action)|\(action_parms)|\(query_method)|\(query_value)"
-        if let current_element = element_dict[key] {
-            print("Found element: \(current_element)")
-            element = current_element
-        } else {
-            element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value)
-        }
-        let xPixel = element.frame.origin.x + element.frame.size.width / 2
-        let yPixel = element.frame.origin.y + element.frame.size.height / 2
-        let ElementAction = ElementAction(app: app, xPixel: xPixel, yPixel: yPixel, action_parms: action_parms)
-        ElementAction.perform_action(action: action)
     }
 
     private func handleCoordinateAction(_ params: [String: String]) {

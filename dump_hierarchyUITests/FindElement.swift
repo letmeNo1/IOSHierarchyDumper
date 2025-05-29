@@ -223,19 +223,19 @@ class FindElement {
         }
         return element
     }
-    func find_element_by_query(query_method:String, query_value:String) -> XCUIElement{
-        var element:XCUIElement = XCUIApplication()
-        if query_method == "xpath"{
-            element = find_element_by_xpath(xpath: query_value)
+    func find_element_by_query(query_method: String, query_value: String) -> XCUIElement? {
+        switch query_method.lowercased() {
+        case "xpath":
+            return find_element_by_xpath(xpath: query_value)
+        case "index":
+            return find_element_by_index(index: query_value)
+        case "predicate":
+            return find_element_by_predicate(condition: query_value)
+        default:
+            print("错误：不支持的查询方法: \(query_method)")
+            return nil
         }
-        if query_method == "index"{
-            element = find_element_by_index(index: query_value)
-        }
-        if query_method == "predicate" {
-            element = find_element_by_predicate(condition: query_value)
-        }
-        return element
-
     }
+
     
 }
