@@ -383,34 +383,28 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     }
 
     private func handleFindElementByQuery(_ params: [String: String]) -> String {
-        logger.log(level: .info, "开始调用 handleFindElementByQuery 方法，参数: \(params)")
         
         guard let bundle_id = params["bundle_id"]?.removingPercentEncoding,
               let query_method = params["query_method"]?.removingPercentEncoding,
               let query_value = params["query_value"]?.removingPercentEncoding else {
-            logger.log(level: .error, "缺少必要参数")
             return "Missing parameters"
         }
         
-        logger.log(level: .debug, "解析后的参数 - bundle_id: \(bundle_id), query_method: \(query_method), query_value: \(query_value)")
+        
         
         let app = XCUIApplication(bundleIdentifier: bundle_id)
         let FindElement = FindElement(app: app)
         
         // 处理可选返回值
         guard let element = FindElement.find_element_by_query(query_method: query_method, query_value: query_value) else {
-            logger.log(level: .error, "未找到元素 - query_method: \(query_method), query_value: \(query_value)")
             return ""
         }
         
-        logger.log(level: .info, "成功找到元素 - query_method: \(query_method), query_value: \(query_value)")
         
         do {
             let responseData = try element.snapshotToString()
-            logger.log(level: .debug, "成功转换元素快照为字符串，长度: \(responseData.count)")
             return responseData
         } catch {
-            logger.log(level: .error, "转换元素快照为字符串时出错: \(error.localizedDescription)")
             return ""
         }
     }
