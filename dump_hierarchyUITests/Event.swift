@@ -146,7 +146,7 @@ func press(at point: CGPoint, durtion: Double) -> Bool {
     }
     
     // liftUpAtOffset:
-    if eventPath.responds(to: NSSelectorFromString("liftUpAtOffset:")) {
+    if eventPath.responds(to: NSSelectorFromString(" :")) {
         let sel = NSSelectorFromString("liftUpAtOffset:")
         let imp2 = eventPath.method(for: sel)
         typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
@@ -168,7 +168,8 @@ func press(at point: CGPoint, durtion: Double) -> Bool {
 func move(at startPoint: CGPoint, moveTo endPoint: CGPoint, duration: Double) -> Bool {
     let x = startPoint.x
     let y = startPoint.y
-    
+    let x2 = endPoint.x
+    let y2 = endPoint.y
     guard let eventPath = XCEventHelper.createEventPath(at: startPoint, x: x, y: y) else {
         print("eventPath init失败")
         return false
@@ -178,29 +179,29 @@ func move(at startPoint: CGPoint, moveTo endPoint: CGPoint, duration: Double) ->
     if eventPath.responds(to: NSSelectorFromString("moveToPoint:atOffset:")) {
         let moveSelector = NSSelectorFromString("moveToPoint:atOffset:")
         let moveImp = eventPath.method(for: moveSelector)
-        typealias MoveFunc = @convention(c) (NSObject, Selector, NSValue, Double) -> Void
+        typealias MoveFunc = @convention(c) (NSObject, Selector, NSValue, Double,Double,Double) -> Void
         let moveFunction = unsafeBitCast(moveImp, to: MoveFunc.self)
         
         let endPointValue = NSValue(cgPoint: endPoint)
         let moveOffset = duration * 0.75
-        moveFunction(eventPath, moveSelector, endPointValue, moveOffset)
+        moveFunction(eventPath, moveSelector, endPointValue, x2,y2,moveOffset)
     } else {
         print("不支持 moveToPoint:atOffset:")
         return false
     }
     
     // 设置抬起时间
-    if eventPath.responds(to: NSSelectorFromString("liftUpAtOffset:")) {
-        let liftSelector = NSSelectorFromString("liftUpAtOffset:")
-        let liftImp = eventPath.method(for: liftSelector)
-        typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
-        let liftFunction = unsafeBitCast(liftImp, to: LiftFunc.self)
-        liftFunction(eventPath, liftSelector, duration)
-    } else {
-        print("不支持 liftUpAtOffset:")
-        return false
-    }
-    
+//    if eventPath.responds(to: NSSelectorFromString("liftUpAtOffset:")) {
+//        let liftSelector = NSSelectorFromString("liftUpAtOffset:")
+//        let liftImp = eventPath.method(for: liftSelector)
+//        typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
+//        let liftFunction = unsafeBitCast(liftImp, to: LiftFunc.self)
+//        liftFunction(eventPath, liftSelector, duration)
+//    } else {
+//        print("不支持 liftUpAtOffset:")
+//        return false
+//    }
+//    
     guard let eventRecord = XCEventHelper.createEventRecord(name: "Drag Event") else {
         print("eventRecord init失败")
         return false

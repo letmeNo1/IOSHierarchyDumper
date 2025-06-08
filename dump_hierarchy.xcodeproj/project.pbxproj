@@ -21,6 +21,7 @@
 		225765362BDE2E6D00B74A8C /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 225765352BDE2E6D00B74A8C /* CocoaAsyncSocket */; };
 		225765382BDE2F6E00B74A8C /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 225765372BDE2F6E00B74A8C /* CocoaAsyncSocket */; };
 		2257653A2BE2131A00B74A8C /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 225765392BE2131A00B74A8C /* CocoaAsyncSocket */; };
+		99E474842DF2842C00A9A29E /* Event.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E474832DF2842C00A9A29E /* Event.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +56,7 @@
 		2257652D2BDE2C2500B74A8C /* DeviceInfo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
 		2257652E2BDE2C2500B74A8C /* ElementAction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ElementAction.swift; sourceTree = "<group>"; };
 		2257652F2BDE2C2500B74A8C /* FindElement.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FindElement.swift; sourceTree = "<group>"; };
+		99E474832DF2842C00A9A29E /* Event.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Event.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -141,6 +143,7 @@
 				2257652F2BDE2C2500B74A8C /* FindElement.swift */,
 				2257651D2BDE2BB000B74A8C /* dump_hierarchyUITests.swift */,
 				2257651F2BDE2BB000B74A8C /* dump_hierarchyUITestsLaunchTests.swift */,
+				99E474832DF2842C00A9A29E /* Event.swift */,
 			);
 			path = dump_hierarchyUITests;
 			sourceTree = "<group>";
@@ -309,6 +312,7 @@
 				2257651E2BDE2BB000B74A8C /* dump_hierarchyUITests.swift in Sources */,
 				225765332BDE2C2600B74A8C /* FindElement.swift in Sources */,
 				225765312BDE2C2600B74A8C /* DeviceInfo.swift in Sources */,
+				99E474842DF2842C00A9A29E /* Event.swift in Sources */,
 				225765322BDE2C2600B74A8C /* ElementAction.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
