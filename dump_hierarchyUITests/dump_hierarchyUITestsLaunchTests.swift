@@ -412,6 +412,37 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         }
     }
 
+    private func handleEventAction(_ params: [String: String]) {
+        guard let action = params["action"],
+              let xPixelString = params["x"],
+              let yPixelString = params["y"],
+              let xFloat = Float(xPixelString),
+              let yFloat = Float(yPixelString)
+        else {
+            return
+        }
+        
+        let xPixel = CGFloat(xFloat)
+        let yPixel = CGFloat(yFloat)
+        
+        // 处理可选参数并提供默认值
+        let x2Pixel = params["x2"].flatMap { Float($0) }.map { CGFloat($0) } ?? 0
+        let y2Pixel = params["y2"].flatMap { Float($0) }.map { CGFloat($0) } ?? 0
+        let duration = params["duration"].flatMap { Double($0) } ?? 0.0 // 提供默认值
+        
+        let eventAction = TouchActionExecutor(
+            xPixel: xPixel,
+            yPixel: yPixel,
+            x2Pixel: Double(x2Pixel), // 修正参数名
+            y2Pixel: Double(y2Pixel),
+            duration: duration
+        )
+        
+        let rst = eventAction.perform(action: action)
+        print(rst)
+        
+    }
+
     private func handleCoordinateAction(_ params: [String: String]) {
         guard let bundle_id = params["bundle_id"],
               let action = params["action"],
