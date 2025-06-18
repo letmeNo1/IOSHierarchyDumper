@@ -152,6 +152,9 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 let errorMessage = "HTTP/1.1 404 Not Found\r\n\r\n".data(using: .utf8) ?? Data()
                 sendHTTPResponse((404, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
                 return
+            }else if command.contains("event") {
+                handleEventAction(params)
+                responseBody = "Event action performed"
             }
 
             let responseData = responseBody.data(using: .utf8) ?? Data()
