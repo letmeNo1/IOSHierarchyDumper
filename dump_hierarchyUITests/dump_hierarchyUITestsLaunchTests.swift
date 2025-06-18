@@ -223,7 +223,11 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     private func handleActivateApp(_ params: [String: String]) {
         guard let bundle_id = params["bundle_id"] else { return }
         let app = XCUIApplication(bundleIdentifier: bundle_id)
-        app.activate()
+        
+        // 检查应用状态：.runningForeground 表示已激活
+        if app.state != .runningForeground {
+            app.activate()
+        }
     }
 
     private func handleTerminateApp(_ params: [String: String]) {
