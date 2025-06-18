@@ -87,7 +87,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         sock.disconnectAfterWriting()
     }
 
-    private func handleHTTPRequest(_ request: String, socket: GCDAsyncSocket) {
+     private func handleHTTPRequest(_ request: String, socket: GCDAsyncSocket){
         let lines = request.components(separatedBy: "\r\n")
         let firstLine = lines.first?.components(separatedBy: " ")
         guard let method = firstLine?[0], let path = firstLine?[1] else {
@@ -121,11 +121,10 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 responseBody = "Recording started"
             } else if command.contains("stop_recording") {
                 let responseData = handleStopRecording()
-                   socket.write(responseData, withTimeout: -1, tag: 0)
-                   return
+                socket.write(responseData, withTimeout: -1, tag: 0)
+                return
             } else if command.contains("get_actual_wh") {
                 responseBody = handleGetActualWH()
-            
             } else if command.contains("get_png_pic") {
                 responseBody = "PNG picture data"
             } else if command.contains("find_elements_by_query") {
@@ -138,23 +137,35 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 return
             } else if command.contains("find_element_by_query") {
                 responseBody = handleFindElementByQuery(params)
-            }  else if command.contains("coordinate_action") {
+            } else if command.contains("coordinate_action") {
                 handleCoordinateAction(params)
                 responseBody = "Coordinate action performed"
             } else if command.contains("device_action") {
                 handleDeviceAction(params)
                 responseBody = "Device action performed"
-            } else if command.contains("device_info") {
-                responseBody = handleDeviceInfo(params)
-            } else if command.contains("check_status") {
-                responseBody = handleCheckStatus()
-            } else {
-                let errorMessage = "HTTP/1.1 404 Not Found\r\n\r\n".data(using: .utf8) ?? Data()
-                sendHTTPResponse((404, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
-                return
             }else if command.contains("event") {
                 handleEventAction(params)
                 responseBody = "Event action performed"
+            }
+            else if command.contains("device_info") {
+                responseBody = handleDeviceInfo(params)
+            } else if command.contains("check_status") {
+                responseBody = handleCheckStatus()
+            
+            }
+            else if command == "save_ip" {
+                guard let ip = params["ip"] else {
+                    responseBody = "缺少 IP 参数"
+                    return
+                }
+                UserDefaults.standard.set(ip, forKey: "ServerIP")
+                responseBody = "IP 地址已保存：\(ip)"
+            }
+
+            else {
+                let errorMessage = "HTTP/1.1 404 Not Found\r\n\r\n".data(using: .utf8) ?? Data()
+                sendHTTPResponse((404, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
+                return
             }
 
             let responseData = responseBody.data(using: .utf8) ?? Data()
@@ -164,6 +175,7 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             sendHTTPResponse((405, ["Content-Type": "text/plain", "Content-Length": "\(errorMessage.count)"], errorMessage), socket: socket)
         }
     }
+
 
     private func sendHTTPResponse(_ response: (statusCode: Int, headers: [String: String], body: Data), socket: GCDAsyncSocket) {
         var responseString = "HTTP/1.1 \(response.statusCode) "
