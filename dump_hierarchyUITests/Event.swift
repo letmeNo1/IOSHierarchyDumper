@@ -108,7 +108,7 @@ class TouchActionExecutor {
 func tap(at point: CGPoint) -> Bool {
     let x = point.x
     let y = point.y
-    let pressOffset = 0.3
+    let pressOffset = 0.1
     
     guard let eventPath = XCEventHelper.createEventPath(at: point, x: x, y: y) else {
         print("eventPath init失败")
@@ -138,26 +138,26 @@ func tap(at point: CGPoint) -> Bool {
 func press(at point: CGPoint, durtion: Double) -> Bool {
     let x = point.x
     let y = point.y
-    let liftOffset = durtion
+    let pressOffset = durtion
     
     guard let eventPath = XCEventHelper.createEventPath(at: point, x: x, y: y) else {
         print("eventPath init失败")
         return false
     }
     
-    // liftUpAtOffset:
-    if eventPath.responds(to: NSSelectorFromString(" :")) {
-        let sel = NSSelectorFromString("liftUpAtOffset:")
+    // pressDownAtOffset:
+    if eventPath.responds(to: NSSelectorFromString("pressDownAtOffset:")) {
+        let sel = NSSelectorFromString("pressDownAtOffset:")
         let imp2 = eventPath.method(for: sel)
-        typealias LiftFunc = @convention(c) (NSObject, Selector, Double) -> Void
-        let func2 = unsafeBitCast(imp2, to: LiftFunc.self)
-        func2(eventPath, sel, liftOffset)
+        typealias PressFunc = @convention(c) (NSObject, Selector, Double) -> Void
+        let func2 = unsafeBitCast(imp2, to: PressFunc.self)
+        func2(eventPath, sel, pressOffset)
     } else {
-        print("不支持 liftUpAtOffset:")
+        print("不支持 pressDownAtOffset:")
         return false
     }
     
-    guard let eventRecord = XCEventHelper.createEventRecord(name: "Press Event") else {
+    guard let eventRecord = XCEventHelper.createEventRecord(name: "Tap Event") else {
         print("eventRecord init失败")
         return false
     }
