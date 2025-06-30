@@ -267,24 +267,25 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         }
         
     private func handleStartRecording() {
-       isRecording = true
-       images = []
-       var screenshotCount = 0
-       let maxScreenshots = 600
+        isRecording = true
+        images = []
+        var screenshotCount = 0
+        let maxScreenshots = 600
 
-       DispatchQueue.global(qos: .background).async { [weak self] in
-           guard let self = self else { return }
-           while self.isRecording && screenshotCount < maxScreenshots {
-               DispatchQueue.main.async {
-                   let screenshot = XCUIScreen.main.screenshot()
-                   let image = screenshot.image
-                   self.images.append(image)
-               }
-               screenshotCount += 1
-               usleep(200_000)
-           }
-       }
-   }
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            while self.isRecording && screenshotCount < maxScreenshots {
+                // 将UI操作放在主队列执行
+                let screenshot = DispatchQueue.main.sync {
+                    let screenshot = XCUIScreen.main.screenshot()
+                    return screenshot.image
+                }
+                self.images.append(screenshot)
+                screenshotCount += 1
+                usleep(200_000)
+            }
+        }
+    }
 
     private func handleStopRecording() -> Data {
         guard isRecording else {
