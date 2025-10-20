@@ -48,12 +48,11 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     }
 
     func testClienth() {
-        for i in 0..<100 {
-            let expectation = XCTestExpectation(description: "Receive response from server \(i)")
-            expectations.append(expectation)
-        }
+        let stopExpectation = XCTestExpectation(description: "Wait for stop_test command")
+            expectations.append(stopExpectation)
         wait(for: expectations, timeout: 999990.0)
     }
+    
 
     @objc func startServer() {
         var customValueInt: UInt16 = 8200
@@ -146,6 +145,10 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
             }else if command.contains("event") {
                 handleEventAction(params)
                 responseBody = "Event action performed"
+            }
+            else if command == "stop_test" {
+                expectations.forEach { $0.fulfill() } // 触发所有Expectation
+                responseBody = "Test stopped manually"
             }
             else if command.contains("device_info") {
                 responseBody = handleDeviceInfo(params)
