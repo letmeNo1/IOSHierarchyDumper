@@ -21,6 +21,7 @@
 		225765362BDE2E6D00B74A8C /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 225765352BDE2E6D00B74A8C /* CocoaAsyncSocket */; };
 		225765382BDE2F6E00B74A8C /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 225765372BDE2F6E00B74A8C /* CocoaAsyncSocket */; };
 		2257653A2BE2131A00B74A8C /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 225765392BE2131A00B74A8C /* CocoaAsyncSocket */; };
+		99EA05092F90C338009BD306 /* Event.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EA05082F90C338009BD306 /* Event.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +56,7 @@
 		2257652D2BDE2C2500B74A8C /* DeviceInfo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
 		2257652E2BDE2C2500B74A8C /* ElementAction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ElementAction.swift; sourceTree = "<group>"; };
 		2257652F2BDE2C2500B74A8C /* FindElement.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FindElement.swift; sourceTree = "<group>"; };
+		99EA05082F90C338009BD306 /* Event.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Event.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -141,6 +143,7 @@
 				2257652F2BDE2C2500B74A8C /* FindElement.swift */,
 				2257651D2BDE2BB000B74A8C /* dump_hierarchyUITests.swift */,
 				2257651F2BDE2BB000B74A8C /* dump_hierarchyUITestsLaunchTests.swift */,
+				99EA05082F90C338009BD306 /* Event.swift */,
 			);
 			path = dump_hierarchyUITests;
 			sourceTree = "<group>";
@@ -218,7 +221,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1520;
-				LastUpgradeCheck = 1520;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					225764FE2BDE2BA800B74A8C = {
 						CreatedOnToolsVersion = 15.2;
@@ -309,6 +312,7 @@
 				2257651E2BDE2BB000B74A8C /* dump_hierarchyUITests.swift in Sources */,
 				225765332BDE2C2600B74A8C /* FindElement.swift in Sources */,
 				225765312BDE2C2600B74A8C /* DeviceInfo.swift in Sources */,
+				99EA05092F90C338009BD306 /* Event.swift in Sources */,
 				225765322BDE2C2600B74A8C /* ElementAction.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -387,6 +391,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -443,6 +448,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -513,7 +519,6 @@
 		225765272BDE2BB000B74A8C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -533,7 +538,6 @@
 		225765282BDE2BB000B74A8C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -553,7 +557,6 @@
 		2257652A2BDE2BB000B74A8C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A6AGM34J8Z;
@@ -572,7 +575,6 @@
 		2257652B2BDE2BB000B74A8C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LLGXSQ6Z9K;
