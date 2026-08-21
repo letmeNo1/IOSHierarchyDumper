@@ -25,8 +25,12 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     var testExpectation: XCTestExpectation?
     var expectations: [XCTestExpectation] = []
     var element_dict = [String: XCUIElement]()
-    var isRecording = false
-    var images: [UIImage] = []
+    private let recordingQueue = DispatchQueue(label: "com.ioshierarchydumper.recording", qos: .utility)
+    private let recordingGroup = DispatchGroup()
+    private let recordingStateLock = NSLock()
+    private let recordingScale: CGFloat = 0.5
+    private var isRecording = false
+    private var imageDatas: [Data] = []
 
     override func setUp() {
         super.setUp()
@@ -41,6 +45,10 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         for expectation in expectations {
             expectation.fulfill()
         }
+        recordingStateLock.lock()
+        isRecording = false
+        recordingStateLock.unlock()
+        recordingGroup.wait()
         super.tearDown()
         listenSocket.disconnect()
         listenSocket = nil
@@ -116,11 +124,10 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
                 handleTerminateApp(params)
                 responseBody = "App terminated"
             } else if command.contains("start_recording") {
-                handleStartRecording()
-                responseBody = "Recording started"
+                sendHTTPResponse(handleStartRecording(), socket: socket)
+                return
             } else if command.contains("stop_recording") {
-                let responseData = handleStopRecording()
-                socket.write(responseData, withTimeout: -1, tag: 0)
+                sendHTTPResponse(handleStopRecording(), socket: socket)
                 return
             } else if command.contains("get_actual_wh") {
                 responseBody = handleGetActualWH()
@@ -198,8 +205,8 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
         responseString += "\r\n"
 
         if let responseData = responseString.data(using: .utf8) {
-            let finalData = responseData + response.body
-            socket.write(finalData, withTimeout: -1, tag: 0)
+            socket.write(responseData, withTimeout: -1, tag: 0)
+            socket.write(response.body, withTimeout: -1, tag: 0)
         }
     }
 
@@ -240,84 +247,107 @@ class MyServerTests: XCTestCase, GCDAsyncSocketDelegate {
     }
     
     
-    func handleStartRecordingRequest() -> Data {
-            // 检查是否已有录制正在进行
-            if isRecording {
-                let statusCode = 400
-                let headers = ["Content-Type": "text/plain"]
-                // 将 let 改为 var，使 errorMessage 成为可变变量
-                var errorMessage = "HTTP/1.1 \(statusCode) Bad Request\r\n"
-                for (key, value) in headers {
-                    errorMessage += "\(key): \(value)\r\n"
-                }
-                errorMessage += "\r\nRecording is already in progress"
-                return errorMessage.data(using: .utf8)!
-            }
-            
-            // 调用实际的录制启动方法
-            handleStartRecording()
-            
-            // 返回成功响应
-            let statusCode = 200
-            let headers = ["Content-Type": "text/plain"]
-            // 将 let 改为 var，使 successMessage 成为可变变量
-            var successMessage = "HTTP/1.1 \(statusCode) OK\r\n"
-            for (key, value) in headers {
-                successMessage += "\(key): \(value)\r\n"
-            }
-            successMessage += "\r\nRecording started successfully"
-            return successMessage.data(using: .utf8)!
+    private func handleStartRecording() -> (statusCode: Int, headers: [String: String], body: Data) {
+        recordingStateLock.lock()
+        guard !isRecording else {
+            recordingStateLock.unlock()
+            let body = Data("Recording is already in progress".utf8)
+            return (400, ["Content-Type": "text/plain", "Content-Length": "\(body.count)"], body)
         }
-        
-    private func handleStartRecording() {
-        isRecording = true
-        images = []
-        var screenshotCount = 0
-        let maxScreenshots = 600
 
-        DispatchQueue.global(qos: .background).async { [weak self] in
+        isRecording = true
+        imageDatas.removeAll(keepingCapacity: true)
+        recordingStateLock.unlock()
+
+        recordingGroup.enter()
+        let recordingGroup = recordingGroup
+        recordingQueue.async { [weak self] in
+            defer { recordingGroup.leave() }
             guard let self = self else { return }
-            while self.isRecording && screenshotCount < maxScreenshots {
-                // 将UI操作放在主队列执行
-                let screenshot = DispatchQueue.main.sync {
-                    let screenshot = XCUIScreen.main.screenshot()
-                    return screenshot.image
+
+            var screenshotCount = 0
+            let maxScreenshots = 600
+            let captureInterval = 0.2
+            var nextCaptureTime = ProcessInfo.processInfo.systemUptime
+
+            while screenshotCount < maxScreenshots {
+                self.recordingStateLock.lock()
+                let shouldContinue = self.isRecording
+                self.recordingStateLock.unlock()
+                guard shouldContinue else { break }
+
+                autoreleasepool {
+                    let image = XCUIScreen.main.screenshot().image
+                    guard let imageData = self.encodeRecordingFrame(image) else { return }
+
+                    self.recordingStateLock.lock()
+                    self.imageDatas.append(imageData)
+                    self.recordingStateLock.unlock()
                 }
-                self.images.append(screenshot)
+
                 screenshotCount += 1
-                usleep(200_000)
+                nextCaptureTime += captureInterval
+                let delay = nextCaptureTime - ProcessInfo.processInfo.systemUptime
+                if delay > 0 {
+                    Thread.sleep(forTimeInterval: delay)
+                }
             }
         }
+
+        let body = Data("Recording started".utf8)
+        return (200, ["Content-Type": "text/plain", "Content-Length": "\(body.count)"], body)
     }
 
-    private func handleStopRecording() -> Data {
+    private func encodeRecordingFrame(_ image: UIImage) -> Data? {
+        guard let sourceImage = image.cgImage else { return nil }
+
+        let targetSize = CGSize(
+            width: max(1, CGFloat(sourceImage.width) * recordingScale),
+            height: max(1, CGFloat(sourceImage.height) * recordingScale)
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let resizedImage = UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        return resizedImage.jpegData(compressionQuality: 0.0)
+    }
+
+    private func handleStopRecording() -> (statusCode: Int, headers: [String: String], body: Data) {
+        recordingStateLock.lock()
         guard isRecording else {
-            let statusCode = 400
-            let headers = ["Content-Type": "text/plain"]
-            var errorMessage = "HTTP/1.1 \(statusCode) Bad Request\r\n"
-            for (key, value) in headers {
-                errorMessage += "\(key): \(value)\r\n"
-            }
-            errorMessage += "\r\nNo recording in progress"
-            return errorMessage.data(using: .utf8)!
+            recordingStateLock.unlock()
+            let body = Data("No recording in progress".utf8)
+            return (400, ["Content-Type": "text/plain", "Content-Length": "\(body.count)"], body)
         }
-        
+
         isRecording = false
-        let imageDatas = images.compactMap { $0.jpegData(compressionQuality: 0.0) }
-        
-        // 构建 JSON 响应（Base64 编码的图片数组）
-        let jsonData = try? JSONSerialization.data(withJSONObject: imageDatas.map { $0.base64EncodedString() })
-        
-        let statusCode = 200
-        let headers = ["Content-Type": "application/json"]
-        var responseString = "HTTP/1.1 \(statusCode) OK\r\n"
-        for (key, value) in headers {
-            responseString += "\(key): \(value)\r\n"
+        recordingStateLock.unlock()
+        recordingGroup.wait()
+
+        recordingStateLock.lock()
+        let frames = imageDatas
+        imageDatas = []
+        recordingStateLock.unlock()
+
+        var body = Data()
+        let encodedSize = frames.reduce(2) { size, frame in
+            size + ((frame.count + 2) / 3 * 4) + 2
+        } + max(0, frames.count - 1)
+        body.reserveCapacity(encodedSize)
+        body.append(0x5B)
+        for (index, frame) in frames.enumerated() {
+            if index > 0 {
+                body.append(0x2C)
+            }
+            body.append(0x22)
+            body.append(frame.base64EncodedData())
+            body.append(0x22)
         }
-        responseString += "\r\n"
-        
-        let finalData = responseString.data(using: .utf8)! + (jsonData ?? Data())
-        return finalData
+        body.append(0x5D)
+
+        return (200, ["Content-Type": "application/json", "Content-Length": "\(body.count)"], body)
     }
 
 
